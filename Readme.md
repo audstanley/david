@@ -18,7 +18,7 @@ It perfectly fits if you would like to give some people the possibility to uploa
 share files with common tools like the OSX Finder, Windows Explorer or Nautilus under Linux
 ([or many other tools](https://en.wikipedia.org/wiki/Comparison_of_WebDAV_software#WebDAV_clients)).
 
-The project david is an extension from the project ![dave](https://github.com/micromata/dave)
+The project david is an extension from the project [dave](https://github.com/micromata/dave)
 
 ## Table of Contents
 
