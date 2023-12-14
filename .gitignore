@@ -8,10 +8,6 @@ dt
 bin/
 dist/
 config.yaml
-david
-david.exe
-bcpt
-bcpt.exe
 
 # Test binary, build with `go test -c`
 *.test
