@@ -17,7 +17,7 @@ It perfectly fits if you would like to give some people the possibility to uploa
 share files with common tools like the OSX Finder, Windows Explorer or Nautilus under Linux
 ([or many other tools](https://en.wikipedia.org/wiki/Comparison_of_WebDAV_software#WebDAV_clients)).
 
-The project david is an extension from the project ![david](https://github.com/audstanley/david)
+The project david is an extension from the project ![dave](https://github.com/micromata/dave)
 
 ## Table of Contents
 
@@ -259,62 +259,6 @@ git clone https://github.com/micromata/david.git
 cd cmd/david && go build . && mv ./david ~/go/bin/david
 ```
 
-#### magefile
-
-You can also use mage to build the project.
-
-Please ensure you've got [mage](https://magefile.org) installed. This can be done with the
-following steps:
-
-```sh
-git clone https://github.com/magefile/mage
-cd mage
-go run bootstrap.go
-```
-
-The [golint](https://github.com/golang/lint) utility is also required for `mage check`:
-
-```sh
-go install golang.org/x/lint/golint
-```
-
-Now you can call `mage install` to build and install the binaries. If you just call `mage`,
-you'll get a list of possible targets:
-
-	Targets:
-	  build            Builds david and davidcli and moves it to the dist directory
-	  buildReleases    Builds david and davidcli for different OS and package them to a zip file for each os
-	  check            Runs golint and go tool vet on each .go file.
-	  clean            Removes the dist directory
-	  fmt              Formats the code via gofmt
-	  install          Installs david and davidcli to your $GOPATH/bin folder
-	  installDeps      Runs dep ensure and installs additional dependencies.
-
-### Build and run with Docker
-
-The image of david is available on Docker Hub as [`micromata/david`](https://hub.docker.com/r/micromata/david).
-
-If you like to build it for your own, just execute the following lines:
-
-```sh
-git clone https://github.com/micromata/david.git
-cd david
-docker build -t micromata/david:latest .
-```
-
-You can run david with the following lines:
-
-```sh
-# create webdav home
-mkdir webdav-home
-
-docker run -d \
-	-p 8000:8000 \
-	-v $(pwd)/examples/config-sample.yaml:/config.yaml:ro \
-	-v $(pwd)/webdav-home:/tmp:rw \
-	micromata/david:latest
-```
-
 ## Connecting
 
 You could simply connect to the WebDAV server with an HTTP(S) connection and a tool that
@@ -328,14 +272,6 @@ enter the server address (e.g. `http://localhost:8000`) and choose connect.
 Everyone is welcome to create pull requests for this project. If you're new to github, take
 a look [here](https://help.github.com/categories/collaborating-with-issues-and-pull-requests/)
 to get an idea of it.
-
-If you'd like to contribute, please make sure to use the [magefile](#magefile) and execute and
-check the following commands before starting a PR:
-
-```sh
-mage fmt
-mage check
-```
 
 If you've got an idea of a function that should find it's way into this project, but you
 won't implement it by yourself, please create a new issue.
