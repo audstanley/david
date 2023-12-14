@@ -269,7 +269,7 @@ enter the server address (e.g. `http://localhost:8000`) and choose connect.
 ## Contributing
 
 Everyone is welcome to create pull requests for this project. If you're new to github, take
-a look [here](https://help.github.com/categories/collaborating-with-issues-and-pull-requests/)
+a look [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests)
 to get an idea of it.
 
 If you've got an idea of a function that should find it's way into this project, but you
