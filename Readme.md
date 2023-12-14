@@ -1,16 +1,8 @@
-[![Build Status](https://travis-ci.org/micromata/dave.svg?branch=master)](https://travis-ci.org/micromata/dave)
-[![Go Report](https://goreportcard.com/badge/github.com/micromata/dave)](https://goreportcard.com/report/github.com/micromata/dave)
-
-# dave - The simple WebDAV server
-
-## Sorry, this project is unmaintained 😢
-
-Thanks to all contributors for your incredible work! 
-
+# david - The simple WebDAV server... extended.
 
 ## Introduction
 
-_dave_ is a simple WebDAV server that provides the following features:
+_david_ is a simple WebDAV server that provides the following features:
 
 - Single binary that runs under Windows, Linux and OSX.
 - Authentication via HTTP-Basic.
@@ -24,8 +16,7 @@ It perfectly fits if you would like to give some people the possibility to uploa
 share files with common tools like the OSX Finder, Windows Explorer or Nautilus under Linux
 ([or many other tools](https://en.wikipedia.org/wiki/Comparison_of_WebDAV_software#WebDAV_clients)).
 
-The project name _dave_ is an abbreviation for: **D**istributed **A**uthoring and **V**ersioning
-made **e**asy.
+The project david is an extension from the project ![dave](https://github.com/micromata/dave)
 
 ## Table of Contents
 
@@ -46,20 +37,20 @@ made **e**asy.
 
 ## Configuration
 
-The configuration is done in form of a yaml file. _dave_ will scan the
+The configuration is done in form of a yaml file. _david_ will scan the
 following locations for the presence of a `config.yaml` in the following
 order:
 
 - The directory `./config`
-- The directory `$HOME/.swd` (swd was the initial project name of dave)
-- The directory `$HOME/.dave`
+- The directory `$HOME/.swd` (swd was the initial project name of david)
+- The directory `$HOME/.david`
 - The current working directory `.`
 
 Alternatively, the path to a configuration file can be specified on the
 command-line:
 
 ```sh
-dave --config /path/to/config.yaml
+david --config /path/to/config.yaml
 ```
 
 ### First steps
@@ -132,7 +123,7 @@ environments.
 
 ### Behind a proxy
 
-_dave_ will also work behind a reverse proxy. Here is an example
+_david_ will also work behind a reverse proxy. Here is an example
 configuration with `apache2 httpd`'s `mod_proxy`:
 
 ```xml
@@ -144,12 +135,12 @@ configuration with `apache2 httpd`'s `mod_proxy`:
 
 ### User management
 
-User management in _dave_ is very simple, but optional. You don't have to add users if it's not
+User management in _david_ is very simple, but optional. You don't have to add users if it's not
 necessary for your use case. But if you do, each user in the `config.yaml` **must** have a
 password and **can** have a subdirectory.
 
 The password must be in form of a BCrypt hash. You can generate one calling the shipped cli
-tool `davecli passwd`.
+tool `davidcli passwd`.
 
 If a subdirectory is configured for a user, the user is jailed within it and can't see anything
 that exists outside of this directory. If no subdirectory is configured for an user, the user
@@ -203,13 +194,13 @@ configuration silently in background.
 
 ### Binary installation
 
-You can check out the [releases page](https://github.com/micromata/dave/releases) for the latest
+You can check out the [releases page](https://github.com/micromata/david/releases) for the latest
 precompiled binaries.
 
 Otherwise you can use the binary installation via go get:
 
 ```sh
-go get github.com/micromata/dave/cmd/...
+go get github.com/micromata/david/cmd/...
 ```
 
 ### Build from sources
@@ -227,7 +218,7 @@ mkdir -p $GOPATH/src/github.com/micromata/ && cd $GOPATH/src/github.com/micromat
 3. Clone the repository (or your fork)
 
 ```sh
-git clone https://github.com/micromata/dave.git
+git clone https://github.com/micromata/david.git
 ```
 
 To build and install from sources you have two major possibilites:
@@ -237,7 +228,7 @@ To build and install from sources you have two major possibilites:
 You can use the plain go toolchain and install the project to your `$GOPATH` via:
 
 ```sh
-cd $GOPATH/src/github.com/micromata/dave && go install ./...
+cd $GOPATH/src/github.com/micromata/david && go install ./...
 ```
 
 #### magefile
@@ -263,27 +254,27 @@ Now you can call `mage install` to build and install the binaries. If you just c
 you'll get a list of possible targets:
 
 	Targets:
-	  build            Builds dave and davecli and moves it to the dist directory
-	  buildReleases    Builds dave and davecli for different OS and package them to a zip file for each os
+	  build            Builds david and davidcli and moves it to the dist directory
+	  buildReleases    Builds david and davidcli for different OS and package them to a zip file for each os
 	  check            Runs golint and go tool vet on each .go file.
 	  clean            Removes the dist directory
 	  fmt              Formats the code via gofmt
-	  install          Installs dave and davecli to your $GOPATH/bin folder
+	  install          Installs david and davidcli to your $GOPATH/bin folder
 	  installDeps      Runs dep ensure and installs additional dependencies.
 
 ### Build and run with Docker
 
-The image of dave is available on Docker Hub as [`micromata/dave`](https://hub.docker.com/r/micromata/dave).
+The image of david is available on Docker Hub as [`micromata/david`](https://hub.docker.com/r/micromata/david).
 
 If you like to build it for your own, just execute the following lines:
 
 ```sh
-git clone https://github.com/micromata/dave.git
-cd dave
-docker build -t micromata/dave:latest .
+git clone https://github.com/micromata/david.git
+cd david
+docker build -t micromata/david:latest .
 ```
 
-You can run dave with the following lines:
+You can run david with the following lines:
 
 ```sh
 # create webdav home
@@ -293,7 +284,7 @@ docker run -d \
 	-p 8000:8000 \
 	-v $(pwd)/examples/config-sample.yaml:/config.yaml:ro \
 	-v $(pwd)/webdav-home:/tmp:rw \
-	micromata/dave:latest
+	micromata/david:latest
 ```
 
 ## Connecting

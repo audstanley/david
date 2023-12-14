@@ -2,18 +2,23 @@ package app
 
 import (
 	"context"
-	"golang.org/x/net/webdav"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"golang.org/x/net/webdav"
 )
 
+var noCrudOperations = CrudType{"", false, false, false, false}
+
 func TestAuthenticate(t *testing.T) {
+
 	type args struct {
 		config   *Config
 		username string
 		password string
+		crud     *CrudType
 	}
 	tests := []struct {
 		name    string
@@ -31,10 +36,12 @@ func TestAuthenticate(t *testing.T) {
 				}},
 				username: "",
 				password: "password",
+				crud:     &noCrudOperations,
 			},
 			&AuthInfo{
 				Username:      "",
 				Authenticated: false,
+				CrudType:      nil,
 			},
 			true,
 		},
@@ -161,14 +168,14 @@ func TestAuthFromContext(t *testing.T) {
 		{
 			"success",
 			args{
-				ctx: context.WithValue(baseCtx, authInfoKey, &AuthInfo{"username", true}),
+				ctx: context.WithValue(baseCtx, authInfoKey, &AuthInfo{"username", true, &CrudType{"crud", true, true, true, true}}),
 			},
-			&AuthInfo{"username", true},
+			&AuthInfo{"username", true, &CrudType{"crud", true, true, true, true}},
 		},
 		{
 			"failure",
 			args{
-				ctx: context.WithValue(baseCtx, fakeKeyValue, &AuthInfo{"username", true}),
+				ctx: context.WithValue(baseCtx, fakeKeyValue, &AuthInfo{"username", true, &CrudType{"crud", true, true, true, true}}),
 			},
 			nil,
 		},

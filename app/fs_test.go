@@ -12,12 +12,26 @@ import (
 )
 
 func TestDirResolveUser(t *testing.T) {
-	configTmp := createTestConfig("/tmp")
+	// This function tests how Dir.resolveUser() behaves with different user contexts passed through context.Context.
+	// It verifies that the method returns the correct username for authenticated users and an empty string for unauthenticated users.
+	configTmp := createTestConfig("/tmp") // Create a temporary configuration for testing.
 
-	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
-	user1 := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "user1", Authenticated: true})
-	anon := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "user1", Authenticated: false})
+	ctx := context.Background() // Create a background context for testing.
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		}) // Create a context with an admin user.
+	user1 := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "user1",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		}) // Create a context with a regular user.
+	anon := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "user1",
+			Authenticated: false,
+			CrudType:      &CrudType{Crud: "", Create: false, Read: false, Update: false, Delete: false},
+		}) // Create a context with an unauthenticated user.
 
 	tests := []struct {
 		name string
@@ -43,22 +57,40 @@ func TestDirResolveUser(t *testing.T) {
 // This is a nearly concrete copy of the function TestDirResolve of golang.org/x/net/webdav/file_test.go
 // just with prefixes and configuration details.
 func TestDirResolve(t *testing.T) {
+	// **1. Setting up test fixtures:**
 	configTmp := createTestConfig("/tmp")
 	configRoot := createTestConfig("/")
 	configCurrentDir := createTestConfig(".")
 	configEmpty := createTestConfig("")
 
+	// Define background context.
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
-	user1 := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "user1", Authenticated: true})
-	user2 := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "user2", Authenticated: true})
 
+	// Create different user contexts with auth information.
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
+	user1 := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "user1",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
+	user2 := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "user2",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
+
+	// Define a list of test cases as structs with expected results.
 	tests := []struct {
 		cfg  *Config
 		name string
 		ctx  context.Context
 		want string
 	}{
+		// **2. Test cases for admin user with different base directories and paths:**
 		{configTmp, "", admin, "/tmp"},
 		{configTmp, ".", admin, "/tmp"},
 		{configTmp, "/", admin, "/tmp"},
@@ -164,20 +196,23 @@ func TestDirResolve(t *testing.T) {
 		{configTmp, "/a/b/c/d", user1, "/tmp/subdir1/a/b/c/d"},
 		{configTmp, "", user2, "/tmp/subdir2"},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := Dir{
+	// **3. Looping through test cases and running individual tests:**
+	for _, tt := range tests { // Loop through each element in the `tests` list.
+		t.Run(tt.name, func(t *testing.T) { // Run each test case with its name for better reporting.
+			d := Dir{ // Call the `Dir.resolve` method with the test case's context and name.
 				Config: tt.cfg,
 			}
 			if got := d.resolve(tt.ctx, tt.name); got != tt.want {
-				t.Errorf("Dir.resolve() = %v, want %v. Base dir is %v", got, tt.want, tt.cfg.Dir)
+				// Compare the returned resolved directory path (`got`) with the expected value (`tt.want`).
+				t.Errorf("Dir.resolve() = %v, want %v. Base dir is %v", got, tt.want, tt.cfg.Dir) // If they differ, report an error with details.
+				// Include the resolved path (`got`), expected path (`tt.want`), and base directory from the config for context.
 			}
 		})
 	}
 }
 
 func TestDirMkdir(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 
@@ -185,7 +220,11 @@ func TestDirMkdir(t *testing.T) {
 	configTmp := createTestConfig(tmpDir)
 
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
 
 	tests := []struct {
 		name    string
@@ -211,13 +250,17 @@ func TestDirMkdir(t *testing.T) {
 }
 
 func TestDirOpenFile(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 	configTmp := createTestConfig(tmpDir)
 
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
 
 	tests := []struct {
 		name    string
@@ -257,7 +300,7 @@ func TestDirOpenFile(t *testing.T) {
 }
 
 func TestRemoveDir(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 	configTmp := createTestConfig(tmpDir)
@@ -303,8 +346,12 @@ func TestRemoveDir(t *testing.T) {
 
 func TestDirRemoveAll(t *testing.T) {
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 	configTmp := createTestConfig(tmpDir)
@@ -350,13 +397,17 @@ func TestDirRemoveAll(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 	configTmp := createTestConfig(tmpDir)
 
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
 
 	tests := []struct {
 		name      string
@@ -410,13 +461,17 @@ func TestRename(t *testing.T) {
 }
 
 func TestDirStat(t *testing.T) {
-	tmpDir := filepath.Join(os.TempDir(), "dave__"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 	configTmp := createTestConfig(tmpDir)
 
 	ctx := context.Background()
-	admin := context.WithValue(ctx, authInfoKey, &AuthInfo{Username: "admin", Authenticated: true})
+	admin := context.WithValue(ctx, authInfoKey,
+		&AuthInfo{Username: "admin",
+			Authenticated: true,
+			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+		})
 
 	tests := []struct {
 		name    string
@@ -469,9 +524,11 @@ func createTestConfig(dir string) *Config {
 		"admin": {},
 		"user1": {
 			Subdir: &subdirs[0],
+			Crud:   &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
 		},
 		"user2": {
 			Subdir: &subdirs[1],
+			Crud:   &CrudType{Crud: "crud", Create: false, Read: false, Update: false, Delete: false},
 		},
 	}
 	config := &Config{

@@ -3,11 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
-	"strings"
 )
 
 type contextKey int
@@ -18,6 +19,7 @@ var authInfoKey contextKey
 type AuthInfo struct {
 	Username      string
 	Authenticated bool
+	CrudType      *CrudType
 }
 
 // authWebdavHandlerFunc is a type definition which holds a context and application reference to
@@ -39,62 +41,77 @@ func NewBasicAuthWebdavHandler(a *App) http.Handler {
 	})
 }
 
-func authenticate(config *Config, username, password string) (*AuthInfo, error) {
-	if !config.AuthenticationNeeded() {
-		return &AuthInfo{Username: "", Authenticated: false}, nil
+var testCrudType = CrudType{"", false, false, false, false}
+
+// authenticate validates the provided username and password against the configured users and returns an AuthInfo object.
+func authenticate(cfg *Config, username, password string) (*AuthInfo, error) {
+
+	// Perform authentication only if required
+	if !cfg.AuthenticationNeeded() {
+		return &AuthInfo{Username: "", Authenticated: false, CrudType: &testCrudType}, nil
 	}
 
+	// Validate username and password presence
 	if username == "" || password == "" {
-		return &AuthInfo{Username: username, Authenticated: false}, errors.New("username not found or password empty")
+		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("username not found or password empty")
 	}
 
-	user := config.Users[username]
+	// Retrieve user information from configuration
+	user := cfg.Users[username]
+	crud := cfg.Users[username].Crud
+
 	if user == nil {
-		return &AuthInfo{Username: username, Authenticated: false}, errors.New("user not found")
+		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("user not found")
 	}
-
+	// Verify provided password against stored hash
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return &AuthInfo{Username: username, Authenticated: false}, errors.New("Password doesn't match")
+		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("Password doesn't match")
 	}
 
-	return &AuthInfo{Username: username, Authenticated: true}, nil
+	// Return successful authentication information
+	return &AuthInfo{Username: username, Authenticated: true, CrudType: crud}, nil
 }
 
 // AuthFromContext returns information about the authentication state of the current user.
 func AuthFromContext(ctx context.Context) *AuthInfo {
+	// Attempt to retrieve the AuthInfo object from the context
 	info, ok := ctx.Value(authInfoKey).(*AuthInfo)
 	if !ok {
+		// Return nil if AuthInfo is not present
 		return nil
 	}
-
+	// Return the retrieved AuthInfo object
 	return info
 }
 
 func handle(ctx context.Context, w http.ResponseWriter, req *http.Request, a *App) {
-	// handle a preflight if such a CORS request would be allowed
+	// CORS preflight request handling
 	if req.Method == "OPTIONS" {
+		// Allow preflight requests from configured origins and with valid headers
 		if a.Config.Cors.Origin == req.Header.Get("Origin") &&
 			req.Header.Get("Access-Control-Request-Method") != "" &&
 			req.Header.Get("Access-Control-Request-Headers") != "" {
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusNoContent) // Send empty response
 			return
 		}
 	}
 
-	// if there are no users, we don't need authentication here
+	// Authentication bypass for systems without users
 	if !a.Config.AuthenticationNeeded() {
 		a.Handler.ServeHTTP(w, req.WithContext(ctx))
 		return
 	}
-
+	// Extract username and password from HTTP Basic Auth header
 	username, password, ok := httpAuth(req, a.Config)
 	if !ok {
-		writeUnauthorized(w, a.Config.Realm)
+		// Respond with Unauthorized status and optional realm
+		SayUnauthorized(w, a.Config.Realm)
 		return
 	}
-
+	// Authenticate user credentials
 	authInfo, err := authenticate(a.Config, username, password)
+	// Log failed login attempt with user and IP address
 	if err != nil {
 		ipAddr := req.Header.Get("X-Forwarded-For")
 		if len(ipAddr) == 0 {
@@ -106,16 +123,17 @@ func handle(ctx context.Context, w http.ResponseWriter, req *http.Request, a *Ap
 				ipAddr = remoteAddr
 			}
 		}
-
 		log.WithField("user", username).WithField("address", ipAddr).WithError(err).Warn("User failed to login")
 	}
-
-	if !authInfo.Authenticated {
-		writeUnauthorized(w, a.Config.Realm)
+	// Check if user is authenticated and authorized
+	if !authInfo.Authenticated || !authInfo.CrudType.Read {
+		// Respond with Unauthorized status and optional realm
+		SayUnauthorized(w, a.Config.Realm)
 		return
 	}
-
+	// Add authentication information to context
 	ctx = context.WithValue(ctx, authInfoKey, authInfo)
+	// Serve request with authenticated user context
 	a.Handler.ServeHTTP(w, req.WithContext(ctx))
 }
 
@@ -128,7 +146,7 @@ func httpAuth(r *http.Request, config *Config) (string, string, bool) {
 	return "", "", true
 }
 
-func writeUnauthorized(w http.ResponseWriter, realm string) {
+func SayUnauthorized(w http.ResponseWriter, realm string) {
 	w.Header().Set("WWW-Authenticate", "Basic realm="+realm)
 	w.WriteHeader(http.StatusUnauthorized)
 	_, err := w.Write([]byte(fmt.Sprintf("%d %s", http.StatusUnauthorized, "Unauthorized")))

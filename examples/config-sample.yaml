@@ -1,71 +1,31 @@
-# ---------------------------------- Network -----------------------------------
-#
-# The bind address to use
-#
+# Address and port
 address: '0.0.0.0'
-#
-# The listening port
-#
-port: '8000'
-#
-# The prefix path of the server. Default none
-#
-#prefix: '/'
+port: 8000
 
-# ---------------------------- Transport security ------------------------------
-#tls:
-#  keyFile: key.pem
-#  certFile: cert.pem
-# ------------------------
-
-
-# ---------------------------------- Content -----------------------------------
-#
-# The provided base dir
-#
+# Content directory
 dir: '/tmp'
 
+# Basic auth
+realm: 'david'
 
-# --------------------------------- Basic Auth ---------------------------------
-#
-# Name of the basic auth realm
-#
-realm: 'dave'
-
-# ----------------------------------- Users ------------------------------------
-#
-# A list of user definitions
-#
+# Users
 users:
-  #
-  # user with username 'user', password 'foo' and jailed access to '/tmp/user'
-  #
   user:
     password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
     subdir: '/user'
-
-  #
-  # user with username 'admin', password 'foo' and access to '/tmp'
-  #
+    permissions: crud
   admin:
     password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
+    permissions: crud
 
+# Logging
+log:
+  error: true
+  create: true
+  read: true
+  update: true
+  delete: true
 
-# ---------------------------------- Logging -----------------------------------
-#
-# Seperated loglevels for file / directory operations. All set to false per
-# default instead of error log. The error log is set to true per default.
-#
-#log:
-#  error: true
-#  create: false
-#  read: false
-#  update: false
-#  delete: false
-
-# ---------------------------------- CORS -----------------------------------
-#
-# Use the following section to enable Cross-origin access to the server.
-#
-#cors:
-#  origin: '*'
+# CORS
+cors:
+  origin: '*'
