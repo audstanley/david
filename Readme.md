@@ -101,7 +101,7 @@ tls:
   certFile: cert.pem
 users:
   ...
-...
+
 ```
 
 The presence of the `tls` section is completely enough to let the server
@@ -193,7 +193,7 @@ necessary for your use case. But if you do, each user in the `config.yaml` **mus
 password and **can** have a subdirectory.
 
 The password must be in form of a BCrypt hash. You can generate one calling the shipped cli
-tool `davidcli passwd`.
+tool `bcpt passwd`.
 
 If a subdirectory is configured for a user, the user is jailed within it and can't see anything
 that exists outside of this directory. If no subdirectory is configured for an user, the user
@@ -255,8 +255,10 @@ configuration silently in background.
 git clone https://github.com/micromata/david.git
 ```
 
+Have Golang installed. then:
 ```sh
 cd cmd/david && go build . && mv ./david ~/go/bin/david
+cd ../bcpt && go build . && mv bcpt ~/go/bin/bcpt
 ```
 
 ## Connecting
