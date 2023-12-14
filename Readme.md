@@ -249,7 +249,7 @@ configuration silently in background.
 3. Clone the repository (or your fork)
 
 ```sh
-git clone https://github.com/micromata/david.git
+git clone https://github.com/audstanley/david
 ```
 
 Have Golang installed. then:
