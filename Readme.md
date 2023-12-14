@@ -214,9 +214,6 @@ All file-operation logs are disabled per default until you will turn it on via t
 config entries:
 
 ```yaml
-address: "127.0.0.1"    # the bind address
-port: "8000"            # the listening port
-dir: "/home/webdav"     # the provided base directory
 log:
   error: true
   create: true
