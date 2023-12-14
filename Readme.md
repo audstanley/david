@@ -6,6 +6,7 @@ _david_ is a simple WebDAV server that provides the following features:
 
 - Single binary that runs under Windows, Linux and OSX.
 - Authentication via HTTP-Basic.
+- CRUD operation permissions
 - TLS support - if needed.
 - A simple user management which allows user-directory-jails as well as full admin access to
   all subdirectories.
@@ -16,7 +17,7 @@ It perfectly fits if you would like to give some people the possibility to uploa
 share files with common tools like the OSX Finder, Windows Explorer or Nautilus under Linux
 ([or many other tools](https://en.wikipedia.org/wiki/Comparison_of_WebDAV_software#WebDAV_clients)).
 
-The project david is an extension from the project ![dave](https://github.com/micromata/dave)
+The project david is an extension from the project ![david](https://github.com/audstanley/david)
 
 ## Table of Contents
 
@@ -66,8 +67,10 @@ users:
   user:                 # with password 'foo' and jailed access to '/home/webdav/user'
     password: "$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW"
     subdir: "/user"
+    permissions: "cru" # This user won't be able to delete from the server.
   admin:                # with password 'foo' and access to '/home/webdav'
     password: "$2a$10$DaWhagZaxWnWAOXY0a55.eaYccgtMOL3lGlqI3spqIBGyM0MD.EN6"
+    permissions: "crud"
 ```
 
 With this configuration you'll grant access for two users and the WebDAV
@@ -97,6 +100,7 @@ tls:
   keyFile: clean_key.pem
   certFile: cert.pem
 users:
+  ...
 ...
 ```
 
@@ -131,6 +135,55 @@ configuration with `apache2 httpd`'s `mod_proxy`:
   ProxyPass           https://webdav-host:8000/
   ProxyPassReverse    https://webdav-host:8000/
 </Location>
+```
+
+Here is an example of david using a [json caddyfile](https://caddyserver.com/docs/json/) for a reverse proxy:
+```json
+{
+    "admin": {
+      "disabled": false,
+      "listen": "0.0.0.0:2019",
+      "enforce_origin": false,
+      "origins": [
+        "127.0.0.1"
+      ],
+      "config": {
+        "persist": false
+      }
+    },
+    "apps": {
+      "http": {
+        "servers": {
+          "MyServers": {
+            "listen": [
+              ":443"
+            ],
+            "routes": [
+              {
+                "match": [
+                  {
+                    "host": [
+                      "files.example.com"
+                    ]
+                  }
+                ],
+                "handle": [
+                  {
+                    "handler": "reverse_proxy",
+                    "upstreams": [
+                      {
+                        "dial": ":8000"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
 ```
 
 ### User management
@@ -192,28 +245,9 @@ configuration silently in background.
 
 ## Installation
 
-### Binary installation
-
-You can check out the [releases page](https://github.com/micromata/david/releases) for the latest
-precompiled binaries.
-
-Otherwise you can use the binary installation via go get:
-
-```sh
-go get github.com/micromata/david/cmd/...
-```
-
 ### Build from sources
 
 #### Setup
-
-1. Ensure you've set up _Go_. Take a look at the [installation guide](https://golang.org/doc/install)
-   and how you [set up your path](https://github.com/golang/go/wiki/SettingGOPATH)
-2. Create a source directory and change your working directory
-
-```sh
-mkdir -p $GOPATH/src/github.com/micromata/ && cd $GOPATH/src/github.com/micromata
-```
 
 3. Clone the repository (or your fork)
 
@@ -221,14 +255,8 @@ mkdir -p $GOPATH/src/github.com/micromata/ && cd $GOPATH/src/github.com/micromat
 git clone https://github.com/micromata/david.git
 ```
 
-To build and install from sources you have two major possibilites:
-
-#### go install
-
-You can use the plain go toolchain and install the project to your `$GOPATH` via:
-
 ```sh
-cd $GOPATH/src/github.com/micromata/david && go install ./...
+cd cmd/david && go build . && mv ./david ~/go/bin/david
 ```
 
 #### magefile
