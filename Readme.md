@@ -60,10 +60,10 @@ david --config /path/to/config.yaml
 Here an example of a very simple but functional configuration:
 
 ```yaml
-address: "127.0.0.1"    # the bind address
-port: "8000"            # the listening port
-dir: "/home/webdav"     # the provided base dir
-prefix: "/webdav"       # the url-prefix of the original url
+address: "127.0.0.1"        # the bind address
+port: "8000"                # the listening port
+dir: "/home/myuser/webdav"  # the provided base dir
+prefix: "/webdav"           # the url-prefix of the original url
 users:
   user:                 # with password 'foo' and jailed access to '/home/webdav/user'
     password: "$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW"
@@ -96,7 +96,7 @@ Now you can reference your keypair in the configuration via:
 ```yaml
 address: "127.0.0.1"    # the bind address
 port: "8000"            # the listening port
-dir: "/home/webdav"     # the provided base directory
+dir: "/home/myuser/webdav"     # the provided base directory
 tls:
   keyFile: clean_key.pem
   certFile: cert.pem
