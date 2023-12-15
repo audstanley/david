@@ -48,7 +48,7 @@ func (d Dir) authorizationFromContext(ctx context.Context) error {
 func (d Dir) resolve(ctx context.Context, name string) string {
 	// Validate the name for any invalid characters or separators.
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) ||
-		strings.Contains(name, "\x00") {
+		strings.Contains(name, "\x00") { // Null bytes are illegal in file names because they can be used to terminate strings prematurely and cause unexpected behavior.
 		return ""
 	}
 	// Retrieve the base directory path from the configuration.

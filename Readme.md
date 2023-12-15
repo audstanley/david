@@ -22,6 +22,8 @@ The project david is an extension from the project [dave](https://github.com/mic
 
 ## Table of Contents
 
+- [Installation](#installation)
+  * [Build from sources](#build-from-sources)
 - [Configuration](#configuration)
   * [First steps](#first-steps)
   * [TLS](#tls)
@@ -29,13 +31,27 @@ The project david is an extension from the project [dave](https://github.com/mic
   * [User management](#user-management)
   * [Logging](#logging)
   * [Live reload](#live-reload)
-- [Installation](#installation)
-  * [Binary-Installation](#binary-installation)
-  * [Build from sources](#build-from-sources)
-  * [Build and run with Docker](#build-and-run-with-docker)
 - [Connecting](#connecting)
 - [Contributing](#contributing)
 - [License](#license)
+
+## Installation
+
+### Build from sources
+
+#### Setup
+
+3. Clone the repository (or your fork)
+
+```sh
+git clone https://github.com/audstanley/david
+```
+
+Make sure to have [Golang installed](https://go.dev/doc/install). than run:
+```sh
+cd cmd/david && go build . && mv ./david ~/go/bin/david
+cd ../bcpt && go build . && mv bcpt ~/go/bin/bcpt && cd ../..
+```
 
 ## Configuration
 
@@ -65,11 +81,11 @@ port: "8000"                # the listening port
 dir: "/home/myuser/webdav"  # the provided base dir
 prefix: "/webdav"           # the url-prefix of the original url
 users:
-  user:                 # with password 'foo' and jailed access to '/home/webdav/user'
+  user:                 # with password 'foo' and jailed access to '/home/myuser/webdav/user'
     password: "$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW"
     subdir: "/user"
     permissions: "cru" # This user won't be able to delete from the server.
-  admin:                # with password 'foo' and access to '/home/webdav'
+  admin:                # with password 'foo' and access to '/home/myuser/webdav'
     password: "$2a$10$DaWhagZaxWnWAOXY0a55.eaYccgtMOL3lGlqI3spqIBGyM0MD.EN6"
     permissions: "crud"
 ```
@@ -241,23 +257,7 @@ the configuration. The config file will be re-read and the application will upda
 configuration silently in background.
 
 
-## Installation
 
-### Build from sources
-
-#### Setup
-
-3. Clone the repository (or your fork)
-
-```sh
-git clone https://github.com/audstanley/david
-```
-
-Have Golang installed. then:
-```sh
-cd cmd/david && go build . && mv ./david ~/go/bin/david
-cd ../bcpt && go build . && mv bcpt ~/go/bin/bcpt
-```
 
 ## Connecting
 

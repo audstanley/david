@@ -211,7 +211,9 @@ func TestDirResolve(t *testing.T) {
 	}
 }
 
+// TestDirMkdir tests the Mkdir method of the Dir struct for various scenarios.
 func TestDirMkdir(t *testing.T) {
+	// 1. Create a temporary directory for the test and clean up afterwards.
 	tmpDir := filepath.Join(os.TempDir(), "david__"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.Mkdir(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
@@ -219,6 +221,7 @@ func TestDirMkdir(t *testing.T) {
 	t.Logf("using test dir: %s", tmpDir)
 	configTmp := createTestConfig(tmpDir)
 
+	// 2. Set up test context with admin information for authorization.
 	ctx := context.Background()
 	admin := context.WithValue(ctx, authInfoKey,
 		&AuthInfo{Username: "admin",
@@ -226,22 +229,26 @@ func TestDirMkdir(t *testing.T) {
 			CrudType:      &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
 		})
 
+	// 3. Define test cases for different Mkdir scenarios.
 	tests := []struct {
 		name    string
 		perm    os.FileMode
 		wantErr bool
 	}{
+		// Valid directory name and permission.
 		{"a", 0700, false},
 		{"/a/", 0700, true}, // already exists
 		{"ab/c\x00d/ef", 0700, true},
 		{"/a/a/a/a", 0700, true},
 		{"a/a/a/a", 0700, true},
 	}
+	// 4. Run each test case with a sub-test.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := Dir{
 				Config: configTmp,
 			}
+			// 5. Call Mkdir and verify if the expected error occurs.
 			if err := d.Mkdir(admin, tt.name, tt.perm); (err != nil) != tt.wantErr {
 				t.Errorf("Dir.Mkdir() name = %v, error = %v, wantErr %v", tt.name, err, tt.wantErr)
 			}
@@ -521,14 +528,19 @@ func TestDirStat(t *testing.T) {
 func createTestConfig(dir string) *Config {
 	subdirs := [2]string{"subdir1", "subdir2"}
 	userInfos := map[string]*UserInfo{
-		"admin": {},
+		"admin": {
+			Permissions: "crud",
+			Crud:        &CrudType{"crud", true, true, true, true},
+		},
 		"user1": {
-			Subdir: &subdirs[0],
-			Crud:   &CrudType{Crud: "crud", Create: true, Read: true, Update: true, Delete: true},
+			Subdir:      &subdirs[0],
+			Permissions: "crud",
+			Crud:        &CrudType{"crud", true, true, true, true},
 		},
 		"user2": {
-			Subdir: &subdirs[1],
-			Crud:   &CrudType{Crud: "crud", Create: false, Read: false, Update: false, Delete: false},
+			Subdir:      &subdirs[1],
+			Permissions: "crud",
+			Crud:        &CrudType{"crud", true, true, true, true},
 		},
 	}
 	config := &Config{
