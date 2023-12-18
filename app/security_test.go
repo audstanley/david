@@ -12,6 +12,8 @@ import (
 
 var noCrudOperations = CrudType{"", false, false, false, false}
 
+// This test is failing, because we have test cases that are haven't covered the
+// new additions to the code that offer errors for when unauthorized crud operations occur.
 func TestAuthenticate(t *testing.T) {
 
 	type args struct {
@@ -31,7 +33,15 @@ func TestAuthenticate(t *testing.T) {
 			args{
 				config: &Config{Users: map[string]*UserInfo{
 					"foo": {
-						Password: GenHash([]byte("password")),
+						Password:    GenHash([]byte("password")),
+						Permissions: "crud",
+						Crud: &CrudType{
+							Crud:   "crud",
+							Create: true,
+							Read:   true,
+							Update: true,
+							Delete: true,
+						},
 					},
 				}},
 				username: "",
@@ -41,7 +51,13 @@ func TestAuthenticate(t *testing.T) {
 			&AuthInfo{
 				Username:      "",
 				Authenticated: false,
-				CrudType:      nil,
+				CrudType: &CrudType{
+					Crud:   "",
+					Create: false,
+					Read:   false,
+					Update: false,
+					Delete: false,
+				},
 			},
 			true,
 		},
