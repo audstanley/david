@@ -258,9 +258,6 @@ There is no need to restart the server itself, if you're editing the user or log
 the configuration. The config file will be re-read and the application will update it's own
 configuration silently in background.
 
-
-
-
 ## Connecting
 
 You could simply connect to the WebDAV server with an HTTP(S) connection and a tool that
@@ -277,6 +274,13 @@ to get an idea of it.
 
 If you've got an idea of a function that should find it's way into this project, but you
 won't implement it by yourself, please create a new issue.
+
+## Issues on Windows?
+Windows 11 is not going to let you map the network drive with a self signed certificate or no running david with no certificate (at all). 
+Consider using Caddy, or use Cyberduck - which will let you connect with a self signed certificate. There might be a way around this
+by editing a windows register, but I don't recommend that. Just use Cyberduck, or try out Cybermount.
+The easiest option is a reverse proxy running Caddy, in my honest opinion. Caddy v2 will sign the certificate, and you can run david
+with no TLS needed since Caddy is handling the encryption over the internet.
 
 ## License
 
