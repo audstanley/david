@@ -21,7 +21,7 @@ users:
 # Logging
 log:
   production: true # All logs will be in NDJSON format. If set to false, than after parsing the config file, the logging mode will be set to TEXT
-  debuug: true
+  debug: true
   error: true
   create: true
   read: true

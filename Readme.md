@@ -81,11 +81,11 @@ port: "8000"                # the listening port
 dir: "/home/myuser/webdav"  # the provided base dir
 prefix: "/webdav"           # the url-prefix of the original url
 users:
-  user:                 # with password 'foo' and jailed access to '/home/myuser/webdav/user'
+  user:                     # with password 'foo' and jailed access to '/home/myuser/webdav/user'
     password: "$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW"
     subdir: "/user"
-    permissions: "cru" # This user won't be able to delete from the server.
-  admin:                # with password 'foo' and access to '/home/myuser/webdav'
+    permissions: "r"        # read only
+  admin:                    # with password 'foo' and access to '/home/myuser/webdav'
     password: "$2a$10$DaWhagZaxWnWAOXY0a55.eaYccgtMOL3lGlqI3spqIBGyM0MD.EN6"
     permissions: "crud"
 ```
@@ -232,6 +232,8 @@ config entries:
 
 ```yaml
 log:
+  production: true # All logs will be in NDJSON format. If set to false, than after parsing the config file, the logging mode will be set to TEXT
+  debug: true
   error: true
   create: true
   read: true
