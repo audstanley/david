@@ -56,22 +56,26 @@ func authenticate(cfg *Config, username, password string) (*AuthInfo, error) {
 
 	// Validate username and password presence
 	if username == "" || password == "" {
-		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("username not found or password empty")
+		return &AuthInfo{Authenticated: false, CrudType: &testCrudType}, errors.New("username not found or password empty")
 	}
 
 	// Retrieve user information from configuration
 	user := cfg.Users[username]
-	crud := cfg.Users[username].Crud
 
 	if user == nil {
-		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("user not found")
+		return nil, errors.New("user not found")
 	}
+
+	// Retrieve user CRUD permissions from configuration
+	crud := cfg.Users[username].Crud
+
 	// Verify provided password against stored hash
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return &AuthInfo{Username: username, Authenticated: false, CrudType: &testCrudType}, errors.New("Password doesn't match")
 	}
 
+	log.WithFields(log.Fields{"user": username, "crud": crud}).Debug("User was authenticated")
 	// Return successful authentication information
 	return &AuthInfo{Username: username, Authenticated: true, CrudType: crud}, nil
 }

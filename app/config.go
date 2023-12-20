@@ -90,6 +90,12 @@ func ParseConfig(path string) *Config {
 
 	// Process user permissions
 	for user := range viper.GetStringMap("Users") {
+		log.WithField("user", user).Debug("Processing user permissions") // Log user permissions processing
+		if cfg.Users[user] == nil {
+			log.WithField("user", user).Error("User not found in config file") // Log error with context
+			log.WithError(errors.New("cannot launch David without a defined user")).Error("user: " + user + " is not defined in the config file")
+			os.Exit(65)
+		}
 		permissions := viper.GetString(fmt.Sprintf("Users.%s.permissions", user)) // Access specific user permissions
 		cfg.Users[user].Crud = &CrudType{Crud: permissions}                       // Set user's CRUD permissions object
 		err := FormatCrud(context.Background(), user, cfg)                        // Further process and validate permissions

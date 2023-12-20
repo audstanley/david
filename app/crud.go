@@ -27,12 +27,19 @@ func FormatCrud(ctx context.Context, name string, cfg *Config) error {
 		crud := cfg.Users[name].Crud
 
 		// Validate CRUD string length.
-		if len(crud.Crud) < 1 || len(crud.Crud) > 4 {
+		if len(crud.Crud) > 4 {
 			cfg.Users[name].Crud.Create = false
 			cfg.Users[name].Crud.Read = false
 			cfg.Users[name].Crud.Update = false
 			cfg.Users[name].Crud.Delete = false
 			return errors.New("invalid CRUD type string: length must be between 1 and 4")
+		} else if len(crud.Crud) < 1 {
+			cfg.Users[name].Crud.Crud = ""
+			cfg.Users[name].Crud.Create = false
+			cfg.Users[name].Crud.Read = false
+			cfg.Users[name].Crud.Update = false
+			cfg.Users[name].Crud.Delete = false
+			return nil
 		}
 
 		// Convert CRUD string to lowercase and update the config.users.crud.crud string to be lowercase.
