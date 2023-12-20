@@ -28,11 +28,13 @@ type Config struct {
 
 // Logging allows definition for logging each CRUD method.
 type Logging struct {
-	Error  bool
-	Create bool
-	Read   bool
-	Update bool
-	Delete bool
+	Production bool `default:"false"`
+	Debug      bool `default:"true"`
+	Error      bool
+	Create     bool
+	Read       bool
+	Update     bool
+	Delete     bool
 }
 
 // TLS allows specification of a certificate and private key file.
@@ -59,7 +61,7 @@ type Cors struct {
 func ParseConfig(path string) *Config {
 	// Initialize and log configuration loading
 	var cfg = &Config{}
-	log.WithField("path", path).Info("Parsing config file")
+	log.WithField("path", path).Debug("Parsing config file")
 	//setDefaults() // Apply default configuration values
 	// Determine configuration file location
 	if path != "" {
@@ -80,10 +82,20 @@ func ParseConfig(path string) *Config {
 	if err != nil {
 		log.Fatal(fmt.Errorf("fatal error parsing config file: %s", err)) // Propagate error with context
 	}
-	log.WithField("path", viper.ConfigFileUsed()).Info("Finished Unmarshalling config file")
+	log.WithField("path", viper.ConfigFileUsed()).Debug("Finished Unmarshalling config file")
+
+	// Set production mode for logging in NDJSON format
+	cfg.Log.Production = viper.GetBool("Log.Production")
+	cfg.Log.Debug = viper.GetBool("Log.Debug")
 
 	// Process user permissions
 	for user := range viper.GetStringMap("Users") {
+		log.WithField("user", user).Debug("Processing user permissions") // Log user permissions processing
+		if cfg.Users[user] == nil {
+			log.WithField("user", user).Error("User not found in config file") // Log error with context
+			log.WithError(errors.New("cannot launch David without a defined user")).Error("user: " + user + " is not defined in the config file")
+			os.Exit(65)
+		}
 		permissions := viper.GetString(fmt.Sprintf("Users.%s.permissions", user)) // Access specific user permissions
 		cfg.Users[user].Crud = &CrudType{Crud: permissions}                       // Set user's CRUD permissions object
 		err := FormatCrud(context.Background(), user, cfg)                        // Further process and validate permissions
@@ -91,7 +103,7 @@ func ParseConfig(path string) *Config {
 			log.WithError(err).WithField("user", user).Error("Error parsing crud string from config file") // log error with context
 		}
 		log.WithFields(logrus.Fields{"user": user,
-			"crud": cfg.Users[user].Crud}).Info("Parsed crud string from config file") // Log parsed permissions
+			"crud": cfg.Users[user].Crud}).Debug("Parsed crud string from config file") // Log parsed permissions
 	}
 
 	// Validate TLS configuration (if present)
@@ -113,30 +125,13 @@ func ParseConfig(path string) *Config {
 	return cfg
 }
 
-// setDefaults adds some default values for the configuration
-// func setDefaults() {
-// 	viper.SetDefault("Address", "127.0.0.1")
-// 	viper.SetDefault("Port", "8000")
-// 	viper.SetDefault("Prefix", "")
-// 	viper.SetDefault("Dir", "/tmp")
-// 	viper.SetDefault("Users", nil)
-// 	viper.SetDefault("TLS", nil)
-// 	viper.SetDefault("Realm", "david")
-// 	viper.SetDefault("Log.Error", true)
-// 	viper.SetDefault("Log.Create", false)
-// 	viper.SetDefault("Log.Read", false)
-// 	viper.SetDefault("Log.Update", false)
-// 	viper.SetDefault("Log.Delete", false)
-// 	viper.SetDefault("Cors.Credentials", false)
-// }
-
 // AuthenticationNeeded returns whether users are defined and authentication is required
 func (cfg *Config) AuthenticationNeeded() bool {
 	return cfg.Users != nil && len(cfg.Users) != 0
 }
 
 func (cfg *Config) handleConfigUpdate(e fsnotify.Event) {
-	var err error
+	// Recover from any panics during config update
 	defer func() {
 		r := recover()
 		switch t := r.(type) {
@@ -147,31 +142,43 @@ func (cfg *Config) handleConfigUpdate(e fsnotify.Event) {
 		}
 	}()
 
-	log.WithField("path", e.Name).Info("Config file changed")
+	// Log the config file change
+	log.WithField("path", e.Name).Debug("Config file changed")
 
+	// Open the config file for reading
 	file, err := os.Open(e.Name)
 	if err != nil {
 		log.WithField("path", e.Name).Warn("Error reloading config")
 	}
 
+	// Create a new Config object to hold updated values
 	var updatedCfg = &Config{}
+
+	// Read the config file into the viper instance
 	viper.ReadConfig(file)
-	viper.Unmarshal(&updatedCfg)
+	// Unmarshal the viper config into the updatedCfg object
+	if err := viper.Unmarshal(updatedCfg); err != nil {
+		log.WithError(err).Error("Error parsing config file")
+		return
+	}
 	updateConfig(cfg, updatedCfg)
 }
 
+// Call the updateConfig function to merge changes
 func updateConfig(cfg *Config, updatedCfg *Config) {
 	for username := range cfg.Users {
 		if updatedCfg.Users[username] == nil {
-			log.WithField("user", username).Info("Removed User from configuration")
+			log.WithField("user", username).Debug("Removed User from configuration")
 			delete(cfg.Users, username)
 		}
 	}
+	// Process added and updated users
 	for username, userInformationChange := range updatedCfg.Users {
 		if cfg.Users[username] == nil {
 			log.WithField("user", username).Info("Added User to configuration")
 			cfg.Users[username] = userInformationChange
 		} else {
+			// Update password, subdir, and crud if changed
 			if cfg.Users[username].Password != userInformationChange.Password {
 				log.WithField("user", username).Info("Updated password of user")
 				cfg.Users[username].Password = userInformationChange.Password
@@ -190,22 +197,30 @@ func updateConfig(cfg *Config, updatedCfg *Config) {
 			}
 		}
 	}
+	// Update base and user directories if needed
 	cfg.createBaseAndUserDirectoriesIfNeeded()
+
+	// Update logging settings
+	// Log.Production should never be updated during actual production, therefore it's not included here
+	if cfg.Log.Debug != updatedCfg.Log.Debug {
+		cfg.Log.Debug = updatedCfg.Log.Debug
+		log.WithField("enabled", cfg.Log.Debug).Debug("Set debug mode")
+	}
 	if cfg.Log.Create != updatedCfg.Log.Create {
 		cfg.Log.Create = updatedCfg.Log.Create
-		log.WithField("enabled", cfg.Log.Create).Info("Set logging for create operations")
+		log.WithField("enabled", cfg.Log.Create).Debug("Set logging for create operations")
 	}
 	if cfg.Log.Read != updatedCfg.Log.Read {
 		cfg.Log.Read = updatedCfg.Log.Read
-		log.WithField("enabled", cfg.Log.Read).Info("Set logging for read operations")
+		log.WithField("enabled", cfg.Log.Read).Debug("Set logging for read operations")
 	}
 	if cfg.Log.Update != updatedCfg.Log.Update {
 		cfg.Log.Update = updatedCfg.Log.Update
-		log.WithField("enabled", cfg.Log.Update).Info("Set logging for update operations")
+		log.WithField("enabled", cfg.Log.Update).Debug("Set logging for update operations")
 	}
 	if cfg.Log.Delete != updatedCfg.Log.Delete {
 		cfg.Log.Delete = updatedCfg.Log.Delete
-		log.WithField("enabled", cfg.Log.Delete).Info("Set logging for delete operations")
+		log.WithField("enabled", cfg.Log.Delete).Debug("Set logging for delete operations")
 	}
 }
 

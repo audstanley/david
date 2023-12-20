@@ -69,11 +69,11 @@ users:
   lj:
     password: 123
     subdir: /littlejohn
-    permissions: crud
+    permissions: "crud"
   srf:
     password: 234
     subdir: /sheriff
-    permissions: crud
+    permissions: "crud"
 log:
   error: true
 `)

@@ -13,13 +13,15 @@ users:
   user:
     password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
     subdir: '/user'
-    permissions: crud
+    permissions: 'crud'
   admin:
     password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
-    permissions: crud
+    permissions: 'crud'
 
 # Logging
 log:
+  production: true # All logs will be in NDJSON format. If set to false, than after parsing the config file, the logging mode will be set to TEXT
+  debug: true
   error: true
   create: true
   read: true

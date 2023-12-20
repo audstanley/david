@@ -15,6 +15,10 @@ type CrudType struct {
 	Delete bool
 }
 
+type contextKey int
+
+var crudContextKey contextKey
+
 // FormatCrud formats and validates a CRUD type string based on the provided context, user name, configuration.
 // This function takes a context (`ctx`), user name (`name`), configuration (`c`), and a `CrudType` object (`crud`) as input.
 func FormatCrud(ctx context.Context, name string, cfg *Config) error {
@@ -23,12 +27,19 @@ func FormatCrud(ctx context.Context, name string, cfg *Config) error {
 		crud := cfg.Users[name].Crud
 
 		// Validate CRUD string length.
-		if len(crud.Crud) < 1 || len(crud.Crud) > 4 {
+		if len(crud.Crud) > 4 {
 			cfg.Users[name].Crud.Create = false
 			cfg.Users[name].Crud.Read = false
 			cfg.Users[name].Crud.Update = false
 			cfg.Users[name].Crud.Delete = false
 			return errors.New("invalid CRUD type string: length must be between 1 and 4")
+		} else if len(crud.Crud) < 1 {
+			cfg.Users[name].Crud.Crud = ""
+			cfg.Users[name].Crud.Create = false
+			cfg.Users[name].Crud.Read = false
+			cfg.Users[name].Crud.Update = false
+			cfg.Users[name].Crud.Delete = false
+			return nil
 		}
 
 		// Convert CRUD string to lowercase and update the config.users.crud.crud string to be lowercase.
@@ -52,6 +63,13 @@ func FormatCrud(ctx context.Context, name string, cfg *Config) error {
 				// Ignore invalid characters.
 			}
 		}
+
+		// update the context with the CrudType object.
+		ctx = context.WithValue(ctx, crudContextKey, CrudType{crud.Crud, create, read, update, delete})
+		if ctx == nil {
+			return errors.New("failed to update context with CrudType")
+		}
+
 		// Update the fileds of the config.users.crud object.
 		cfg.Users[name].Crud.Create = create
 		cfg.Users[name].Crud.Read = read

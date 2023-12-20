@@ -1,4 +1,5 @@
 # david - The simple WebDAV server... extended.
+A new fork of [dave](https://github.com/micromata/dave)
 
 ## Introduction
 
@@ -17,10 +18,12 @@ It perfectly fits if you would like to give some people the possibility to uploa
 share files with common tools like the OSX Finder, Windows Explorer or Nautilus under Linux
 ([or many other tools](https://en.wikipedia.org/wiki/Comparison_of_WebDAV_software#WebDAV_clients)).
 
-The project david is an extension from the project ![dave](https://github.com/micromata/dave)
+The project david is an extension from the project [dave](https://github.com/micromata/dave)
 
 ## Table of Contents
 
+- [Installation](#installation)
+  * [Build from sources](#build-from-sources)
 - [Configuration](#configuration)
   * [First steps](#first-steps)
   * [TLS](#tls)
@@ -28,13 +31,27 @@ The project david is an extension from the project ![dave](https://github.com/mi
   * [User management](#user-management)
   * [Logging](#logging)
   * [Live reload](#live-reload)
-- [Installation](#installation)
-  * [Binary-Installation](#binary-installation)
-  * [Build from sources](#build-from-sources)
-  * [Build and run with Docker](#build-and-run-with-docker)
 - [Connecting](#connecting)
 - [Contributing](#contributing)
 - [License](#license)
+
+## Installation
+
+### Build from sources
+
+#### Setup
+
+3. Clone the repository (or your fork)
+
+```sh
+git clone https://github.com/audstanley/david
+```
+
+Make sure to have [Golang installed](https://go.dev/doc/install). than run:
+```sh
+cd cmd/david && go build . && mv ./david ~/go/bin/david
+cd ../bcpt && go build . && mv bcpt ~/go/bin/bcpt && cd ../..
+```
 
 ## Configuration
 
@@ -59,16 +76,16 @@ david --config /path/to/config.yaml
 Here an example of a very simple but functional configuration:
 
 ```yaml
-address: "127.0.0.1"    # the bind address
-port: "8000"            # the listening port
-dir: "/home/webdav"     # the provided base dir
-prefix: "/webdav"       # the url-prefix of the original url
+address: "127.0.0.1"        # the bind address
+port: "8000"                # the listening port
+dir: "/home/myuser/webdav"  # the provided base dir
+prefix: "/webdav"           # the url-prefix of the original url
 users:
-  user:                 # with password 'foo' and jailed access to '/home/webdav/user'
+  user:                     # with password 'foo' and jailed access to '/home/myuser/webdav/user'
     password: "$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW"
     subdir: "/user"
-    permissions: "cru" # This user won't be able to delete from the server.
-  admin:                # with password 'foo' and access to '/home/webdav'
+    permissions: "r"        # read only
+  admin:                    # with password 'foo' and access to '/home/myuser/webdav'
     password: "$2a$10$DaWhagZaxWnWAOXY0a55.eaYccgtMOL3lGlqI3spqIBGyM0MD.EN6"
     permissions: "crud"
 ```
@@ -95,7 +112,7 @@ Now you can reference your keypair in the configuration via:
 ```yaml
 address: "127.0.0.1"    # the bind address
 port: "8000"            # the listening port
-dir: "/home/webdav"     # the provided base directory
+dir: "/home/myuser/webdav"     # the provided base directory
 tls:
   keyFile: clean_key.pem
   certFile: cert.pem
@@ -215,6 +232,8 @@ config entries:
 
 ```yaml
 log:
+  production: true # All logs will be in NDJSON format. If set to false, than after parsing the config file, the logging mode will be set to TEXT
+  debug: true
   error: true
   create: true
   read: true
@@ -239,25 +258,6 @@ There is no need to restart the server itself, if you're editing the user or log
 the configuration. The config file will be re-read and the application will update it's own
 configuration silently in background.
 
-
-## Installation
-
-### Build from sources
-
-#### Setup
-
-3. Clone the repository (or your fork)
-
-```sh
-git clone https://github.com/audstanley/david
-```
-
-Have Golang installed. then:
-```sh
-cd cmd/david && go build . && mv ./david ~/go/bin/david
-cd ../bcpt && go build . && mv bcpt ~/go/bin/bcpt
-```
-
 ## Connecting
 
 You could simply connect to the WebDAV server with an HTTP(S) connection and a tool that
@@ -274,6 +274,13 @@ to get an idea of it.
 
 If you've got an idea of a function that should find it's way into this project, but you
 won't implement it by yourself, please create a new issue.
+
+## Issues on Windows?
+Windows 11 is not going to let you map the network drive with a self signed certificate or no running david with no certificate (at all). 
+Consider using Caddy, or use Cyberduck - which will let you connect with a self signed certificate. There might be a way around this
+by editing a windows register, but I don't recommend that. Just use Cyberduck, or try out Cybermount.
+The easiest option is a reverse proxy running Caddy, in my honest opinion. Caddy v2 will sign the certificate, and you can run david
+with no TLS needed since Caddy is handling the encryption over the internet.
 
 ## License
 
