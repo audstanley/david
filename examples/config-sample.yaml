@@ -61,13 +61,13 @@ users:
   # User with bcrypt hash (default)
   user:
     # bcrypt hash format: $2a$10$...
-    password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
+    password: '$2a$10$l7U5bn1JqCaFvcblQB.FFOgrfxIdb4jR0xZvIULwfQ.MmFZzmNS5K'
     subdir: '/user'
     permissions: 'crud'
   
   # Admin with bcrypt hash
   admin:
-    password: '$2a$10$yITzSSNJZAdDZs8iVBQzkuZCzZ49PyjTiPIrmBUKUpB0pwX7eySvW'
+    password: '$2a$10$l7U5bn1JqCaFvcblQB.FFOgrfxIdb4jR0xZvIULwfQ.MmFZzmNS5K'
     permissions: 'crud'
   
   # Example: User with argon2 hash (uncomment to use)

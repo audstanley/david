@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//test//EN
+BEGIN:VJOURNAL
+UID:test-journal-001@example.com
+DTSTAMP:20260324T120000Z
+DTSTART:20260325
+SUMMARY:Daily Journal Entry
+DESCRIPTION:Today was a productive day. Made good progress on the CalDAV implementation.
+STATUS:FINAL
+END:VJOURNAL
+END:VCALENDAR

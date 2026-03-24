@@ -1,0 +1,83 @@
+# Test configuration for david CalDAV implementation
+# This configuration is used for testing purposes only
+
+# Database configuration
+database:
+  base_dir: "test/data"
+  calendars_db: "calendars.db"
+  events_db: "events.db"
+  todos_db: "todos.db"
+  journals_db: "journals.db"
+  freebusy_db: "freebusy.db"
+  timezones_db: "timezones.db"
+  users_db: "users.db"
+  jwt_blacklist_db: "jwt_blacklist.db"
+  audit_db: "audit.db"
+
+# WebDAV configuration (test)
+webdav:
+  address: "127.0.0.1"
+  port: "9999"
+  prefix: "/webdav"
+  tls:
+    enabled: false
+
+# API configuration (test)
+api:
+  address: "127.0.0.1"
+  port: "9998"
+  cors_enabled: false
+  cors_origins: []
+  auth_methods:
+    - "jwt"
+    - "api_key"
+    - "basic"
+  rate_limiting:
+    enabled: false
+    default_limit: 1000
+    window: "1m"
+    per_ip: true
+
+# Authentication configuration (test - insecure!)
+auth:
+  jwt:
+    secret: "test-secret-key-for-development-only-use-in-tests"
+    expiry: "1h"
+    refresh_expiry: "7d"
+  api_key:
+    prefix: "david_test_"
+    expiry: "365d"
+
+# Recurrence configuration
+recurrence:
+  cache_expiry_days: 30
+  max_cache_instances: 1000
+
+# Logging configuration
+log:
+  level: "debug"
+  production: false
+  rotation:
+    max_size: 100
+    max_backups: 5
+    max_age: 30
+
+# Admin configuration
+admin:
+  statistics:
+    enabled: true
+    cache_duration: "5m"
+  audit:
+    enabled: true
+    retention_days: 90
+
+# Test users (insecure - for testing only)
+users:
+  testuser:
+    password: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+    role: "user"
+    email: "testuser@example.com"
+  admin:
+    password: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+    role: "admin"
+    email: "admin@example.com"

@@ -1,0 +1,131 @@
+# Example configuration for david CalDAV server
+# This file contains all available configuration options with example values
+# Copy this file and modify as needed
+
+# Server address and port
+address: "127.0.0.1"
+port: "8000"
+
+# Base directory for WebDAV files
+dir: "/var/lib/david"
+
+# URL prefix for WebDAV
+prefix: "/webdav"
+
+# Database configuration (LevelDB)
+database:
+  base_dir: "/var/lib/david"
+  calendars_db: "calendars.db"
+  events_db: "events.db"
+  todos_db: "todos.db"
+  journals_db: "journals.db"
+  freebusy_db: "freebusy.db"
+  timezones_db: "timezones.db"
+  users_db: "users.db"
+  jwt_blacklist_db: "jwt_blacklist.db"
+  audit_db: "audit.db"
+
+# WebDAV server configuration
+webdav:
+  address: "127.0.0.1"
+  port: "8000"
+  prefix: "/webdav"
+  tls:
+    enabled: false
+    cert_file: "/etc/david/cert.pem"
+    key_file: "/etc/david/key.pem"
+
+# REST API configuration
+api:
+  address: "127.0.0.1"
+  port: "8080"
+  cors_enabled: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "https://yourdomain.com"
+  auth_methods:
+    - "jwt"
+    - "api_key"
+    - "basic"
+  rate_limiting:
+    enabled: true
+    default_limit: 100
+    window: "1m"
+    per_ip: true
+
+# Authentication configuration
+auth:
+  jwt:
+    # WARNING: Set this via environment variable DAVID_JWT_SECRET
+    # Never commit secrets to version control!
+    secret: ""
+    expiry: "24h"
+    refresh_expiry: "7d"
+  api_key:
+    prefix: "david_"
+    expiry: "365d"
+
+# Recurrence cache configuration
+recurrence:
+  cache_expiry_days: 30
+  max_cache_instances: 1000
+
+# Logging configuration
+log:
+  level: "info"  # debug, info, warn, error, fatal
+  production: false  # true for JSON format, false for text format
+  rotation:
+    max_size: 100  # megabytes
+    max_backups: 5
+    max_age: 30  # days
+
+# Admin features configuration
+admin:
+  statistics:
+    enabled: true
+    cache_duration: "5m"
+  audit:
+    enabled: true
+    retention_days: 90
+
+# CORS configuration (alternative location)
+cors:
+  origin: "*"  # or specific origin, empty for no CORS
+  credentials: true
+
+# Password hashing configuration
+hash:
+  algorithm: "argon2"  # bcrypt, argon2, or scrypt
+  params:
+    bcrypt_cost: 10
+    # argon2 (uses fixed parameters):
+    # memory: 64
+    # iterations: 3
+    # parallelism: 4
+    # scrypt:
+    # scrypt_n: 16384
+    # scrypt_r: 8
+    # scrypt_p: 1
+
+# User accounts (optional - if not specified, users created via API/CLI)
+users:
+  admin:
+    password: "$2a$10$..."  # Hash your password using dcrypt passwd
+    role: "admin"
+    email: "admin@example.com"
+    crud:
+      create: true
+      read: true
+      update: true
+      delete: true
+
+# Example: User with limited permissions
+# user1:
+#   password: "$2a$10$..."
+#   role: "user"
+#   email: "user1@example.com"
+#   crud:
+#     create: true
+#     read: true
+#     update: true
+#     delete: false

@@ -1,0 +1,22 @@
+[Unit]
+Description=david CalDAV Server
+After=network.target
+
+[Service]
+Type=simple
+User=steam
+Group=steam
+ExecStart=/usr/local/bin/david server --config /etc/david/config.yaml
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment="DAVID_JWT_SECRET=change-this-in-production"
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

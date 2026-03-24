@@ -17,7 +17,40 @@ import (
 
 // Default target to run when none is specified
 // If not set, running mage will list available targets
-// var Default = Build
+var Default = Build
+
+// Test runs all tests with race detection
+func Test() {
+	fmt.Println("Running tests...")
+	err := execCommand("go", "test", "./...", "-race").Run()
+	if err != nil {
+		fmt.Printf("Tests failed: %v\n", err)
+	}
+}
+
+// Coverage runs tests with coverage reporting
+func Coverage() {
+	fmt.Println("Running tests with coverage...")
+	err := execCommand("go", "test", "./...", "-race", "-coverprofile=coverage.out", "-covermode=atomic").Run()
+	if err != nil {
+		fmt.Printf("Tests failed: %v\n", err)
+		return
+	}
+
+	fmt.Println("Generating coverage report...")
+	err = execCommand("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html").Run()
+	if err != nil {
+		fmt.Printf("Coverage report generation failed: %v\n", err)
+		return
+	}
+
+	fmt.Println("\nCoverage report generated: coverage.html")
+	fmt.Println("\nOverall coverage:")
+	execCommand("go", "tool", "cover", "-func=coverage.out").Run()
+
+	// Clean up
+	os.Remove("coverage.out")
+}
 
 const (
 	// DIST is the name of the dist directory
