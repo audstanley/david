@@ -33,16 +33,14 @@ echo "✓ Binary built: $OUTPUT_DIR/$BINARY_NAME"
 # Generate checksum
 echo ""
 echo "Generating checksum..."
-cd "$OUTPUT_DIR"
-sha256sum "$BINARY_NAME" > "$BINARY_NAME.sha256"
-echo "✓ Checksum: $BINARY_NAME.sha256"
+sha256sum "$OUTPUT_DIR/$BINARY_NAME" | sed "s|$OUTPUT_DIR/||" > "$OUTPUT_DIR/$BINARY_NAME.sha256"
+echo "✓ Checksum: $OUTPUT_DIR/$BINARY_NAME.sha256"
 
 # Create release archive
 echo ""
 echo "Creating release archive..."
 ARCHIVE_NAME="$BINARY_NAME-$VERSION-linux-amd64"
-tar -czf "$OUTPUT_DIR/$ARCHIVE_NAME.tar.gz" "$BINARY_NAME" "$BINARY_NAME.sha256"
-cd ..
+tar -czf "$OUTPUT_DIR/$ARCHIVE_NAME.tar.gz" -C "$OUTPUT_DIR" "$BINARY_NAME" "$BINARY_NAME.sha256"
 echo "✓ Archive: $OUTPUT_DIR/$ARCHIVE_NAME.tar.gz"
 
 # Generate release notes
