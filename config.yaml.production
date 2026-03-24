@@ -1,0 +1,145 @@
+# David CalDAV Server - Production Configuration Example
+# Copy this file to /etc/david/config.yaml and customize
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 443
+  # TLS configuration (required for production)
+  tls:
+    enabled: true
+    cert_file: "/etc/ssl/certs/david.crt"
+    key_file: "/etc/ssl/private/david.key"
+  # Read timeout for HTTP requests
+  read_timeout: "30s"
+  # Write timeout for HTTP requests  
+  write_timeout: "30s"
+  # Shutdown timeout
+  shutdown_timeout: "60s"
+
+# Data storage
+data_dir: "/var/lib/david"
+
+# Authentication settings
+auth:
+  # JWT settings
+  jwt:
+    secret: "<CHANGE-THIS-SECRET-KEY>"
+    access_expiry: "1h"
+    refresh_expiry: "168h"
+  # API key settings
+  api_key:
+    secret: "<CHANGE-THIS-API-SECRET>"
+  # Basic auth enabled
+  basic_auth:
+    enabled: true
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 60
+    burst: 10
+    enabled: true
+
+# Logging configuration
+logging:
+  level: "error"
+  format: "json"
+  output: "/var/log/david.log"
+  # Enable access logging
+  access_log: "/var/log/david_access.log"
+
+# Timezone settings
+timezones:
+  # IANA tzdata download options
+  iana:
+    # Option A: Free API (timezonedb.com)
+    use_free_api: true
+    api_key: "<OPTIONAL-API-KEY>"
+    # Option B: Bundled data
+    use_bundled: true
+    # Option C: Manual download
+    use_manual: true
+  # Default timezone
+  default: "UTC"
+
+# Cache settings
+cache:
+  # Enable response caching
+  enabled: true
+  # Cache duration for calendar data
+  duration: "5m"
+  # Max cache size (bytes)
+  max_size: 104857600
+
+# Admin settings
+admin:
+  # Enable admin API endpoints
+  enabled: true
+  # Admin users (comma-separated user IDs)
+  users: "user-admin-1,user-admin-2"
+  # Dashboard refresh interval
+  refresh_interval: "5m"
+
+# API settings
+api:
+  # Enable REST API
+  enabled: true
+  # API version
+  version: "v1"
+  # CORS settings
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://cal.example.com"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
+    allow_credentials: true
+
+# WebDAV/CalDAV settings
+webdav:
+  # Enable WebDAV endpoint
+  enabled: true
+  # Path for WebDAV
+  path: "/webdav"
+  # Enable basic auth over WebDAV
+  basic_auth: true
+  # DAV compliance version
+  dav_version: "2"
+
+# Backup settings
+backup:
+  # Enable automatic backups
+  enabled: true
+  # Backup directory
+  directory: "/var/backups/david"
+  # Schedule (cron format)
+  schedule: "0 2 * * *"
+  # Keep last N backups
+  keep: 7
+  # Compress backups
+  compress: true
+
+# Monitoring
+monitoring:
+  # Enable metrics endpoint
+  enabled: true
+  # Metrics path
+  path: "/metrics"
+  # Prometheus format
+  format: "prometheus"
+
+# Database settings
+database:
+  # LevelDB settings
+  leveldb:
+    # Block cache size
+    block_cache: 10485760
+    # Write buffer size
+    write_buffer: 4194304
+    # Enable compression
+    compression: true

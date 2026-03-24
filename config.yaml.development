@@ -1,0 +1,109 @@
+# David CalDAV Server - Development Configuration Example
+# Copy this file and customize for local development
+
+# Server configuration
+server:
+  host: "127.0.0.1"
+  port: 8080
+  # No TLS in development
+  tls:
+    enabled: false
+  # Longer timeouts for debugging
+  read_timeout: "60s"
+  write_timeout: "60s"
+  shutdown_timeout: "120s"
+
+# Data storage (local directory)
+data_dir: "./data/david"
+
+# Authentication settings (relaxed for dev)
+auth:
+  # JWT settings
+  jwt:
+    secret: "dev-secret-key-change-in-production"
+    access_expiry: "24h"
+    refresh_expiry: "30d"
+  # API key settings
+  api_key:
+    secret: "dev-api-secret"
+  # Basic auth enabled
+  basic_auth:
+    enabled: true
+  # Higher rate limits for development
+  rate_limit:
+    requests_per_minute: 1000
+    burst: 100
+    enabled: false
+
+# Logging configuration (verbose for debugging)
+logging:
+  level: "debug"
+  format: "text"
+  output: "stdout"
+  access_log: "stdout"
+
+# Timezone settings
+timezones:
+  iana:
+    use_free_api: false
+    use_bundled: true
+    use_manual: false
+  default: "America/New_York"
+
+# Cache settings (disabled for debugging)
+cache:
+  enabled: false
+  duration: "1m"
+  max_size: 10485760
+
+# Admin settings
+admin:
+  enabled: true
+  users: ""
+  refresh_interval: "1m"
+
+# API settings
+api:
+  enabled: true
+  version: "v1"
+  cors:
+    enabled: true
+    allowed_origins:
+      - "*"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
+    allow_credentials: false
+
+# WebDAV/CalDAV settings
+webdav:
+  enabled: true
+  path: "/webdav"
+  basic_auth: true
+  dav_version: "2"
+
+# Backup settings (disabled for dev)
+backup:
+  enabled: false
+  directory: "./backups"
+  schedule: "0 2 * * *"
+  keep: 7
+  compress: true
+
+# Monitoring
+monitoring:
+  enabled: true
+  path: "/metrics"
+  format: "prometheus"
+
+# Database settings
+database:
+  leveldb:
+    block_cache: 1048576
+    write_buffer: 1048576
+    compression: true

@@ -1,22 +1,46 @@
 [Unit]
 Description=david CalDAV Server
+Documentation=https://github.com/audstanley/david
 After=network.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-User=steam
-Group=steam
-ExecStart=/usr/local/bin/david server --config /etc/david/config.yaml
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+User=david
+Group=david
 
-# Environment variables
-Environment="DAVID_JWT_SECRET=change-this-in-production"
+# Binary path
+ExecStart=/usr/local/bin/david server --config /etc/david/config.yaml
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Environment
+Environment=DAVID_DATA_DIR=/var/lib/david
+Environment=DAVID_LOG_LEVEL=info
+
+# Working directory
+WorkingDirectory=/var/lib/david
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/david /var/log/david
 
 # Resource limits
 LimitNOFILE=65536
+LimitNPROC=256
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=david
+
+# Systemd integration
+ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
