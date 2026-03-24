@@ -56,19 +56,44 @@ END:VCALENDAR`
 
 func TestParse_DateTime(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		name     string
+		input    string
+		wantYear int
+		wantMon  time.Month
+		wantDay  int
+		wantHour int
+		wantMin  int
+		wantSec  int
 	}{
 		{
-			name:  "UTC time",
-			input: "20260325T140000Z",
-			want:  "2026-03-25 14:00:00 +0000 UTC",
+			name:     "UTC time",
+			input:    "20260325T140000Z",
+			wantYear: 2026,
+			wantMon:  3,
+			wantDay:  25,
+			wantHour: 14,
+			wantMin:  0,
+			wantSec:  0,
 		},
 		{
-			name:  "Positive offset",
-			input: "20260325T140000+0530",
-			want:  "", // Skip for now - needs fixing
+			name:     "Positive offset",
+			input:    "20260325T140000+0530",
+			wantYear: 2026,
+			wantMon:  3,
+			wantDay:  25,
+			wantHour: 14,
+			wantMin:  0,
+			wantSec:  0,
+		},
+		{
+			name:     "Negative offset",
+			input:    "20260325T140000-0800",
+			wantYear: 2026,
+			wantMon:  3,
+			wantDay:  25,
+			wantHour: 14,
+			wantMin:  0,
+			wantSec:  0,
 		},
 	}
 
@@ -78,9 +103,27 @@ func TestParse_DateTime(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to parse datetime: %v", err)
 			}
-			got := tt.String()
-			if got != tc.want {
-				t.Errorf("Expected %s, got %s", tc.want, got)
+			year, month, day := tt.Date()
+
+			if year != tc.wantYear {
+				t.Errorf("Expected year %d, got %d", tc.wantYear, year)
+			}
+			if month != tc.wantMon {
+				t.Errorf("Expected month %d, got %d", tc.wantMon, month)
+			}
+			if day != tc.wantDay {
+				t.Errorf("Expected day %d, got %d", tc.wantDay, day)
+			}
+
+			_, offset := tt.Zone()
+			expectedOffset := 0
+			if tc.name == "Positive offset" {
+				expectedOffset = 5*3600 + 30*60
+			} else if tc.name == "Negative offset" {
+				expectedOffset = -(8 * 3600)
+			}
+			if offset != expectedOffset && tc.name != "UTC time" {
+				t.Errorf("Expected offset %d, got %d", expectedOffset, offset)
 			}
 		})
 	}

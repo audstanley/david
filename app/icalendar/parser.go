@@ -464,7 +464,7 @@ func ParseDateTime(s string) (time.Time, error) {
 
 // parseOffsetTime parses a time with timezone offset
 func parseOffsetTime(t time.Time, offset string) (time.Time, error) {
-	if len(offset) != 4 {
+	if len(offset) != 5 {
 		return time.Time{}, ErrInvalidValue
 	}
 
@@ -482,8 +482,8 @@ func parseOffsetTime(t time.Time, offset string) (time.Time, error) {
 		return time.Time{}, ErrInvalidValue
 	}
 
-	offsetMinutes := sign * (hours*60 + minutes)
-	loc := time.FixedZone("UTC+OFFSET", offsetMinutes*60)
+	offsetSeconds := sign * (hours*3600 + minutes*60)
+	loc := time.FixedZone("UTC+OFFSET", offsetSeconds)
 
 	return t.In(loc), nil
 }
@@ -521,23 +521,34 @@ func ParseDuration(s string) (time.Duration, error) {
 	var hours, minutes, seconds, days int
 
 	timePart := false
-	for _, ch := range s {
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
 		if ch == 'T' {
 			timePart = true
 			continue
 		}
 		if ch == 'H' {
-			hours, _ = strconv.Atoi(s[:strings.IndexRune(s, 'H')])
-			s = s[strings.IndexRune(s, 'H')+1:]
+			numStr := s[:i]
+			if numStr != "" {
+				hours, _ = strconv.Atoi(numStr)
+			}
+			s = s[i+1:]
+			i = -1
 		} else if ch == 'M' {
-			minutes, _ = strconv.Atoi(s[:strings.IndexRune(s, 'M')])
-			s = s[strings.IndexRune(s, 'M')+1:]
+			numStr := s[:i]
+			if numStr != "" {
+				minutes, _ = strconv.Atoi(numStr)
+			}
+			s = s[i+1:]
+			i = -1
 		} else if ch == 'S' {
-			seconds, _ = strconv.Atoi(s[:strings.IndexRune(s, 'S')])
+			numStr := s[:i]
+			if numStr != "" {
+				seconds, _ = strconv.Atoi(numStr)
+			}
 		} else if ch >= '0' && ch <= '9' {
 			if !timePart {
 				days, _ = strconv.Atoi(string(ch))
-				s = s[1:]
 			}
 		}
 	}
