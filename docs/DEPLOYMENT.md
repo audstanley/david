@@ -1,280 +1,271 @@
-# Deployment Guide
+# Deployment Guide - david CalDAV Server
 
 ## Prerequisites
 
-- Go 1.24+ installed
-- Linux/Unix system (also works on macOS and Windows)
-- User with appropriate permissions
-- 100MB+ disk space for database and files
+- Linux system (systemd-based)
+- Go 1.21+ (only for building from source)
+- 1GB+ RAM
+- 10GB+ disk space
+- OpenSSL for TLS certificates
 
-## Installation
+## Quick Start
 
-### Build from Source
+### Option 1: Binary Release (Recommended)
+
+```bash
+# Download latest release
+curl -LO https://github.com/audstanley/david/releases/latest/download/david-linux-amd64
+
+# Make executable
+chmod +x david-linux-amd64
+
+# Move to system path
+sudo mv david-linux-amd64 /usr/local/bin/david
+
+# Create user
+sudo useradd -r -s /bin/false david
+sudo mkdir -p /var/lib/david /var/log/david /etc/david
+sudo chown -R david:david /var/lib/david /var/log/david
+
+# Copy configuration
+sudo cp config.yaml.production /etc/david/config.yaml
+
+# Edit configuration
+sudo nano /etc/david/config.yaml
+# Update: JWT secret, API key, TLS certificates, data_dir
+
+# Install systemd service
+sudo cp contrib/systemd/david.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Start service
+sudo systemctl enable david
+sudo systemctl start david
+
+# Check status
+sudo systemctl status david
+```
+
+### Option 2: Build from Source
 
 ```bash
 # Clone repository
-git clone https://github.com/audstanley/david
+git clone https://github.com/audstanley/david.git
 cd david
 
-# Build binaries
-mage Build
+# Build
+go build -o david -ldflags="-X main.version=1.0.0" ./cmd/david
 
-# Install binaries
-sudo cp dist/david /usr/local/bin/
-sudo cp dist/dcrypt /usr/local/bin/
-sudo chmod +x /usr/local/bin/david
-sudo chmod +x /usr/local/bin/dcrypt
-```
+# Run setup
+./david setup
 
-### Download Pre-built Binary
+# Create admin user
+./david user create admin
 
-Download from releases (coming soon) and extract:
-
-```bash
-tar xvf david-linux-amd64.tar.gz
-sudo cp david /usr/local/bin/
+# Run server
+./david server --config config.yaml
 ```
 
 ## Configuration
 
-### Create Configuration File
-
-```bash
-sudo mkdir -p /etc/david
-sudo cp config.yaml.example /etc/david/config.yaml
-sudo nano /etc/david/config.yaml
-```
-
-### Generate JWT Secret
-
-```bash
-# Generate a random secret
-openssl rand -hex 32
-
-# Add to environment or config
-export DAVID_JWT_SECRET="<generated-secret>"
-```
-
-### Create Data Directory
-
-```bash
-sudo mkdir -p /var/lib/david
-sudo chown -R $USER:$USER /var/lib/david
-```
-
-### Create First Admin User
-
-```bash
-# Generate password hash
-dcrypt passwd --password "your-secure-password"
-
-# Add to config.yaml
-users:
-  admin:
-    password: "$2a$10$..."  # Hash from above
-    role: "admin"
-    email: "admin@example.com"
-```
-
-## systemd Setup
-
-### Copy Service File
-
-```bash
-sudo cp contrib/systemd/david.service /etc/systemd/system/
-sudo systemctl daemon-reload
-```
-
-### Enable and Start
-
-```bash
-sudo systemctl enable david
-sudo systemctl start david
-sudo systemctl status david
-```
-
-### View Logs
-
-```bash
-sudo journalctl -u david -f
-```
-
-## TLS Configuration
-
-### Generate Self-Signed Certificate (for testing)
-
-```bash
-openssl req -x509 -newkey rsa:2048 \
-  -keyout /etc/david/key.pem \
-  -out /etc/david/cert.pem \
-  -days 365 -nodes
-```
-
-### Update Configuration
+### Essential Settings
 
 ```yaml
-webdav:
+# /etc/david/config.yaml
+
+server:
+  host: "0.0.0.0"
+  port: 443
   tls:
     enabled: true
-    cert_file: "/etc/david/cert.pem"
-    key_file: "/etc/david/key.pem"
+    cert_file: "/etc/ssl/certs/david.crt"
+    key_file: "/etc/ssl/private/david.key"
+
+data_dir: "/var/lib/david"
+
+auth:
+  jwt:
+    secret: "<STRONG-RANDOM-SECRET>"
 ```
 
-### Use Production Certificate
-
-For production, use a certificate from Let's Encrypt or your CA:
+### Generate Secret
 
 ```bash
-# Example with Certbot
-sudo certbot certonly --standalone -d yourdomain.com
-sudo systemctl reload david
+# Generate secure secret
+head -c 32 /dev/urandom | base64
+```
+
+## TLS Setup
+
+```bash
+# Generate self-signed certificate (for testing)
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/david.key \
+  -out /etc/ssl/certs/david.crt \
+  -subj "/CN=your-domain.com"
+
+# Or use Let's Encrypt
+sudo apt install certbot python3-certbot-nginx
+sudo certbot certonly --standalone -d your-domain.com
+```
+
+## Firewall Configuration
+
+```bash
+# Allow HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Or for custom port
+sudo ufw allow 8443/tcp
+
+# Enable firewall
+sudo ufw enable
 ```
 
 ## Reverse Proxy (Optional)
 
-### nginx Example
+### Nginx Example
 
 ```nginx
 server {
-    listen 80;
-    server_name yourdomain.com;
-    
-    location /webdav {
-        proxy_pass http://127.0.0.1:8000;
+    listen 443 ssl http2;
+    server_name cal.example.com;
+
+    ssl_certificate /etc/ssl/certs/david.crt;
+    ssl_certificate_key /etc/ssl/private/david.key;
+
+    location /webdav/ {
+        proxy_pass http://127.0.0.1:8443/webdav/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
         # WebDAV headers
-        proxy_set_header Content-Type application/octet-stream;
+        proxy_set_header Content-Length $content_length;
+        proxy_buffering off;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8443/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
 
-### Caddy Example
+### Apache Example
 
-```caddyfile
-yourdomain.com {
-    reverse_proxy localhost:8000
-}
+```apache
+<VirtualHost *:443>
+    ServerName cal.example.com
+    
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/david.crt
+    SSLCertificateKeyFile /etc/ssl/private/david.key
+    
+    ProxyPass /webdav/ http://127.0.0.1:8443/webdav/
+    ProxyPassReverse /webdav/ http://127.0.0.1:8443/webdav/
+    
+    ProxyPass /api/ http://127.0.0.1:8443/api/
+    ProxyPassReverse /api/ http://127.0.0.1:8443/api/
+</VirtualHost>
 ```
 
-## Firewall Configuration
-
-### UFW (Ubuntu)
+## Backup Strategy
 
 ```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 8000/tcp  # If not using reverse proxy
-sudo ufw enable
-```
+# Create backup script
+cat > /usr/local/bin/david-backup << 'EOF'
+#!/bin/bash
+BACKUP_DIR="/var/backups/david"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+mkdir -p $BACKUP_DIR
+tar -czf $BACKUP_DIR/david_$TIMESTAMP.tar.gz /var/lib/david
+find $BACKUP_DIR -name "david_*.tar.gz" -mtime +7 -delete
+EOF
 
-### firewalld (CentOS/RHEL)
+chmod +x /usr/local/bin/david-backup
 
-```bash
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
+# Add to cron
+echo "0 2 * * * /usr/local/bin/david-backup" | sudo tee /etc/cron.d/david-backup
 ```
 
 ## Monitoring
 
+### Prometheus Metrics
+
+david exposes metrics at `/metrics`:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'david'
+    static_configs:
+      - targets: ['localhost:8443']
+    metrics_path: '/metrics'
+```
+
 ### Health Check
 
 ```bash
-curl http://localhost:8080/api/health
+# Check service status
+curl -k https://localhost:8443/health
+
+# Check metrics
+curl -k https://localhost:8443/metrics
 ```
 
-### Systemd Status
+### Log Rotation
 
 ```bash
-sudo systemctl status david
-```
-
-### Logs
-
-```bash
-# Recent logs
-sudo journalctl -u david -n 100
-
-# All logs
-sudo journalctl -u david
-
-# Live tail
-sudo journalctl -u david -f
-```
-
-## Backup
-
-### Database Backup
-
-```bash
-# Stop service
-sudo systemctl stop david
-
-# Backup databases
-tar czf /backup/david-backup-$(date +%Y%m%d).tar.gz /var/lib/david/data
-
-# Restart service
-sudo systemctl start david
-```
-
-### File Backup
-
-```bash
-# If using WebDAV for storage
-rsync -av /var/lib/david/ /backup/david-storage/
-```
-
-## Upgrading
-
-```bash
-# Stop service
-sudo systemctl stop david
-
-# Backup
-sudo tar czf /backup/david-config.tar.gz /etc/david
-
-# Install new version
-sudo cp dist/david /usr/local/bin/
-
-# Start service
-sudo systemctl start david
-
-# Verify
-sudo systemctl status david
+# Configure logrotate
+cat > /etc/logrotate.d/david << 'EOF'
+/var/log/david*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 david david
+    postrotate
+        systemctl reload david
+    endscript
+}
+EOF
 ```
 
 ## Troubleshooting
 
-### Port Already in Use
+### Service Won't Start
 
 ```bash
-# Check what's using the port
-sudo lsof -i :8000
+# Check logs
+sudo journalctl -u david -f
 
-# Kill process or change port in config
+# Check config
+david server --config /etc/david/config.yaml --debug
+
+# Check port
+sudo ss -tlnp | grep 8443
+
+# Check permissions
+ls -la /var/lib/david
 ```
 
-### Permission Errors
+### Connection Issues
 
 ```bash
-# Fix directory permissions
-sudo chown -R $USER:$USER /var/lib/david
-sudo chmod -R 755 /var/lib/david
-```
+# Test WebDAV
+curl -k https://localhost:8443/webdav/
 
-### TLS Errors
+# Test API
+curl -k https://localhost:8443/api/health
 
-```bash
-# Check certificate
-openssl x509 -in /etc/david/cert.pem -text -noout
-
-# Check key
-openssl rsa -in /etc/david/key.pem -check
+# Check firewall
+sudo ufw status
 ```
 
 ### Database Corruption
@@ -283,26 +274,70 @@ openssl rsa -in /etc/david/key.pem -check
 # Stop service
 sudo systemctl stop david
 
-# Try to recover (LevelDB has recovery built-in)
-sudo systemctl start david
+# Backup
+sudo cp -r /var/lib/david /var/lib/david.backup
 
-# If still failing, restore from backup
+# Try to recover
+david backup --restore /var/lib/david.backup
 ```
 
-## Security Checklist
+## Security Best Practices
 
-- [ ] JWT secret is unique and secure
-- [ ] TLS is enabled in production
-- [ ] Strong passwords for all users
-- [ ] Rate limiting is enabled
-- [ ] Audit logging is enabled
-- [ ] Firewall is configured
-- [ ] Regular backups are scheduled
-- [ ] System is kept up to date
-- [ ] Logs are monitored
+1. **Use strong secrets** - Generate with `head -c 32 /dev/urandom | base64`
+2. **Enable TLS** - Always use HTTPS in production
+3. **Regular updates** - Keep tzdata updated
+4. **Monitor logs** - Set up log monitoring
+5. **Backup regularly** - Automate backups
+6. **Rate limiting** - Enable and configure
+7. **Audit logging** - Keep audit logs enabled
+8. **Firewall** - Restrict access to necessary ports
+9. **Least privilege** - Run as non-root user
+10. **Harden OS** - Apply security updates regularly
+
+## Performance Tuning
+
+### Increase File Descriptors
+
+```bash
+# Edit systemd service
+cat > /etc/systemd/system/david.service.d/limits.conf << 'EOF'
+[Service]
+LimitNOFILE=65536
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart david
+```
+
+### Cache Configuration
+
+```yaml
+# config.yaml
+cache:
+  enabled: true
+  duration: "10m"
+  max_size: 1073741824  # 1GB
+```
+
+## Uninstall
+
+```bash
+# Stop service
+sudo systemctl stop david
+sudo systemctl disable david
+
+# Remove service
+sudo rm /etc/systemd/system/david.service
+sudo systemctl daemon-reload
+
+# Remove files
+sudo rm -rf /var/lib/david /var/log/david /etc/david
+sudo rm /usr/local/bin/david
+sudo userdel david
+```
 
 ## Support
 
-- Documentation: `docs/` directory
 - Issues: https://github.com/audstanley/david/issues
-- Configuration: `docs/CONFIGURATION.md`
+- Documentation: https://github.com/audstanley/david/docs
+- Community: Join our Discord/Slack (if available)
