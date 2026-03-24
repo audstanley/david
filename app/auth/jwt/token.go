@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/audstanley/david/app/auth"
+	"github.com/audstanley/david/app/auth/common"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -53,7 +53,7 @@ func (m *TokenManager) GenerateAccessToken(userID, role string) (string, error) 
 	claims := jwt.MapClaims{
 		"user_id":    userID,
 		"role":       role,
-		"token_type": auth.TokenTypeAccess,
+		"token_type": common.TokenTypeAccess,
 		"jti":        jwtID,
 		"exp":        expiresAt.Unix(),
 		"iat":        now.Unix(),
@@ -73,7 +73,7 @@ func (m *TokenManager) GenerateRefreshToken(userID, role string) (string, error)
 	claims := jwt.MapClaims{
 		"user_id":    userID,
 		"role":       role,
-		"token_type": auth.TokenTypeRefresh,
+		"token_type": common.TokenTypeRefresh,
 		"jti":        jwtID,
 		"exp":        expiresAt.Unix(),
 		"iat":        now.Unix(),
@@ -107,7 +107,7 @@ func (m *TokenManager) VerifyAccessToken(tokenString string, blacklist *Blacklis
 
 	// Check token type
 	tokenType, ok := claims["token_type"].(string)
-	if !ok || tokenType != auth.TokenTypeAccess {
+	if !ok || tokenType != common.TokenTypeAccess {
 		return nil, errors.New("invalid token type")
 	}
 
@@ -186,7 +186,7 @@ func (m *TokenManager) VerifyRefreshToken(tokenString string, blacklist *Blackli
 
 	// Check token type
 	tokenType, ok := claims["token_type"].(string)
-	if !ok || tokenType != auth.TokenTypeRefresh {
+	if !ok || tokenType != common.TokenTypeRefresh {
 		return nil, errors.New("invalid token type")
 	}
 

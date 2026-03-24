@@ -1,7 +1,7 @@
 package rbac
 
 import (
-	"github.com/audstanley/david/app/auth"
+	"github.com/audstanley/david/app/auth/common"
 )
 
 // RoleChecker checks role-based access control
@@ -12,7 +12,7 @@ type RoleChecker struct {
 // NewRoleChecker creates a new role checker
 func NewRoleChecker() *RoleChecker {
 	return &RoleChecker{
-		permissions: auth.RolePermissions,
+		permissions: common.RolePermissions,
 	}
 }
 
@@ -20,14 +20,14 @@ func NewRoleChecker() *RoleChecker {
 func (c *RoleChecker) HasRole(userRole, requiredRole string) bool {
 	// Role hierarchy: admin > user > reader > public
 	switch requiredRole {
-	case auth.RolePublic:
+	case common.RolePublic:
 		return true // Everyone has public access
-	case auth.RoleReader:
-		return userRole == auth.RoleReader || userRole == auth.RoleUser || userRole == auth.RoleAdmin
-	case auth.RoleUser:
-		return userRole == auth.RoleUser || userRole == auth.RoleAdmin
-	case auth.RoleAdmin:
-		return userRole == auth.RoleAdmin
+	case common.RoleReader:
+		return userRole == common.RoleReader || userRole == common.RoleUser || userRole == common.RoleAdmin
+	case common.RoleUser:
+		return userRole == common.RoleUser || userRole == common.RoleAdmin
+	case common.RoleAdmin:
+		return userRole == common.RoleAdmin
 	default:
 		return userRole == requiredRole
 	}
@@ -35,7 +35,7 @@ func (c *RoleChecker) HasRole(userRole, requiredRole string) bool {
 
 // HasPermission checks if a user has a specific permission
 func (c *RoleChecker) HasPermission(userRole, permission string) bool {
-	return auth.IsPermissionAllowed(userRole, permission)
+	return common.IsPermissionAllowed(userRole, permission)
 }
 
 // HasPermissions checks if a user has all required permissions
