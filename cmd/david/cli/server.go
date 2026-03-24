@@ -23,7 +23,6 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(serverCmd)
 
 	serverCmd.Flags().StringP("config", "c", "", "Path to configuration file")
 	serverCmd.Flags().StringP("host", "H", "", "Override host address")
