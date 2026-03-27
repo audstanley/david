@@ -112,3 +112,13 @@ var VersionCmd = &cobra.Command{
 		fmt.Printf("david version %s (built: %s, commit: %s)\n", version, buildTime, gitCommit)
 	},
 }
+
+// GetRootCmd returns the root command for testing
+func GetRootCmd() *cobra.Command {
+	return RootCmd
+}
+
+// GetServerCmd returns the server command for testing
+func GetServerCmd() *cobra.Command {
+	return serverCmd
+}
