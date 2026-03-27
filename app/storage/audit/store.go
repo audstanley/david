@@ -62,19 +62,24 @@ func (s *Store) GetByUser(userID string, limit, offset int) ([]*storage.AuditEnt
 	}
 
 	var entries []*storage.AuditEntry
-	count := 0
+	skipped := 0
+	done := false
 
 	err := s.db.Iterate([]byte(keyPrefixAuditBy+userID+":"), func(key, value []byte) error {
-		if count >= offset {
-			var entry storage.AuditEntry
-			if err := storage.Decode(value, &entry); err != nil {
-				return err
-			}
-			entries = append(entries, &entry)
-			count++
-			if count >= offset+limit {
-				return nil
-			}
+		if done {
+			return nil
+		}
+		if skipped < offset {
+			skipped++
+			return nil
+		}
+		var entry storage.AuditEntry
+		if err := storage.Decode(value, &entry); err != nil {
+			return err
+		}
+		entries = append(entries, &entry)
+		if len(entries) >= limit {
+			done = true
 		}
 		return nil
 	})
@@ -96,19 +101,24 @@ func (s *Store) GetByEntity(entityType, entityID string, limit, offset int) ([]*
 	}
 
 	var entries []*storage.AuditEntry
-	count := 0
+	skipped := 0
+	done := false
 
 	err := s.db.Iterate([]byte(keyPrefixAuditBy+entityType+":"+entityID+":"), func(key, value []byte) error {
-		if count >= offset {
-			var entry storage.AuditEntry
-			if err := storage.Decode(value, &entry); err != nil {
-				return err
-			}
-			entries = append(entries, &entry)
-			count++
-			if count >= offset+limit {
-				return nil
-			}
+		if done {
+			return nil
+		}
+		if skipped < offset {
+			skipped++
+			return nil
+		}
+		var entry storage.AuditEntry
+		if err := storage.Decode(value, &entry); err != nil {
+			return err
+		}
+		entries = append(entries, &entry)
+		if len(entries) >= limit {
+			done = true
 		}
 		return nil
 	})
@@ -130,25 +140,32 @@ func (s *Store) GetByDateRange(start, end time.Time, limit, offset int) ([]*stor
 	}
 
 	var entries []*storage.AuditEntry
-	count := 0
+	skipped := 0
+	done := false
 
 	startPrefix := keyPrefixAuditByDate + start.Format("20060102") + ":"
-	endPrefix := keyPrefixAuditByDate + end.Format("20060102") + ":"
+	endPrefix := keyPrefixAuditByDate + end.Add(24*time.Hour).Format("20060102") + ":"
 
 	err := s.db.Iterate([]byte(startPrefix), func(key, value []byte) error {
+		if done {
+			return nil
+		}
 		keyStr := string(key)
-		if keyStr < endPrefix {
-			if count >= offset {
-				var entry storage.AuditEntry
-				if err := storage.Decode(value, &entry); err != nil {
-					return err
-				}
-				entries = append(entries, &entry)
-				count++
-				if count >= offset+limit {
-					return nil
-				}
-			}
+		if keyStr >= endPrefix {
+			done = true
+			return nil
+		}
+		if skipped < offset {
+			skipped++
+			return nil
+		}
+		var entry storage.AuditEntry
+		if err := storage.Decode(value, &entry); err != nil {
+			return err
+		}
+		entries = append(entries, &entry)
+		if len(entries) >= limit {
+			done = true
 		}
 		return nil
 	})

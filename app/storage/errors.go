@@ -42,6 +42,7 @@ var (
 	ErrPermission    = &StorageError{Code: "PERMISSION", Message: "permission denied"}
 	ErrConflict      = &StorageError{Code: "CONFLICT", Message: "conflict detected"}
 	ErrRateLimit     = &StorageError{Code: "RATE_LIMIT", Message: "rate limit exceeded"}
+	ErrLimitReached  = &StorageError{Code: "LIMIT_REACHED", Message: "limit reached"}
 )
 
 // IsNotFound checks if an error is a not found error
@@ -167,7 +168,11 @@ func (s *Storage) Iterate(prefix []byte, fn func(key, value []byte) error) error
 func (s *Storage) Batch(pairs [][2][]byte) error {
 	batch := &leveldb.Batch{}
 	for _, pair := range pairs {
-		batch.Put(pair[0], pair[1])
+		if pair[1] == nil {
+			batch.Delete(pair[0])
+		} else {
+			batch.Put(pair[0], pair[1])
+		}
 	}
 	err := s.db.Write(batch, nil)
 	if err != nil {

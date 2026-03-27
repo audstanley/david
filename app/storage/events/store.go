@@ -77,8 +77,8 @@ func (s *Store) Update(eventUID string, event *storage.Event, sequence int) erro
 	}
 
 	// Check sequence number
-	if sequence != 0 && event.Sequence != 0 && event.Sequence <= existing.Sequence {
-		return storage.ErrConflict
+	if event.Sequence != 0 && event.Sequence <= existing.Sequence {
+		return fmt.Errorf("sequence number too low: %d <= %d", event.Sequence, existing.Sequence)
 	}
 
 	// Update sequence if needed
@@ -99,7 +99,11 @@ func (s *Store) Update(eventUID string, event *storage.Event, sequence int) erro
 	pairs := [][2][]byte{
 		{[]byte(keyPrefixEvent + eventUID), data},
 		{[]byte(keyPrefixEventByCal + event.CalendarUID + ":" + eventUID), data},
-		{[]byte(keyPrefixEventByDate + oldDateKey), nil},
+	}
+
+	// Delete old date index if different
+	if oldDateKey != generateDateIndexKey(event.CalendarUID, event.DTStart) {
+		pairs = append(pairs, [2][]byte{[]byte(keyPrefixEventByDate + oldDateKey), nil})
 	}
 
 	// Add new date index
@@ -138,30 +142,39 @@ func (s *Store) List(calendarUID string, start, end time.Time, limit, offset int
 	}
 
 	var events []*storage.Event
-	count := 0
+	filtered := 0
+	returned := 0
 
-	startPrefix := generateDateIndexKey(calendarUID, start)
-	endPrefix := generateDateIndexKey(calendarUID, end)
+	// Use day-level prefix for iteration
+	startPrefix := "date:" + calendarUID + ":" + start.UTC().Format("20060102")
+	endPrefix := "date:" + calendarUID + ":" + end.UTC().Format("20060102") + "\xff"
 
 	err := s.db.Iterate([]byte(startPrefix), func(key, value []byte) error {
 		// Check if key is within range
 		keyStr := string(key)
-		if keyStr < endPrefix {
-			if count >= offset {
-				var event storage.Event
-				if err := storage.Decode(value, &event); err != nil {
-					return err
-				}
-				events = append(events, &event)
-				count++
-				if count >= offset+limit {
-					return nil
-				}
-			}
+		if keyStr >= endPrefix {
+			return nil
 		}
+
+		var event storage.Event
+		if err := storage.Decode(value, &event); err != nil {
+			return err
+		}
+
+		if filtered >= offset {
+			if returned >= limit {
+				return storage.ErrLimitReached
+			}
+			events = append(events, &event)
+			returned++
+		}
+		filtered++
 		return nil
 	})
 
+	if err == storage.ErrLimitReached {
+		return events, nil
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -65,6 +65,14 @@ func (s *Store) GetByUID(journalUID string) (*storage.Journal, error) {
 
 // Update updates a journal
 func (s *Store) Update(journalUID string, journal *storage.Journal) error {
+	existing, err := s.GetByUID(journalUID)
+	if err != nil {
+		return err
+	}
+
+	journal.Sequence = existing.Sequence + 1
+	journal.LastModified = now()
+
 	data, err := storage.Encode(journal)
 	if err != nil {
 		return fmt.Errorf("failed to encode journal: %w", err)
@@ -113,18 +121,20 @@ func (s *Store) List(calendarUID string, limit, offset int) ([]*storage.Journal,
 		}
 
 		if journal.CalendarUID == calendarUID {
-			if count >= offset {
-				journals = append(journals, &journal)
+			if count < offset {
 				count++
-				if count >= offset+limit {
-					return nil
-				}
+				return nil
+			}
+			journals = append(journals, &journal)
+			count++
+			if len(journals) >= limit {
+				return storage.ErrLimitReached
 			}
 		}
 		return nil
 	})
 
-	if err != nil {
+	if err != nil && err != storage.ErrLimitReached {
 		return nil, err
 	}
 

@@ -94,6 +94,9 @@ func (s *Store) Update(userID string, updates map[string]interface{}) error {
 		return err
 	}
 
+	// Store old username before applying updates
+	oldName := user.Username
+
 	// Apply updates
 	if v, ok := updates["username"]; ok {
 		user.Username = v.(string)
@@ -118,20 +121,20 @@ func (s *Store) Update(userID string, updates map[string]interface{}) error {
 		return fmt.Errorf("failed to encode user: %w", err)
 	}
 
-	// Remove old name index
-	oldName := user.Username
-	if _, ok := updates["username"]; !ok {
-		return s.db.Delete([]byte(keyPrefixUserByName + oldName))
-	}
-
 	pairs := [][2][]byte{
 		{[]byte(keyPrefixUser + userID), data},
-		{[]byte(keyPrefixUserByName + user.Username), []byte(userID)},
 	}
 
 	if user.Username != oldName {
+		// Remove old name index and create new one
 		pairs = append(pairs, [][2][]byte{
 			{[]byte(keyPrefixUserByName + oldName), nil},
+			{[]byte(keyPrefixUserByName + user.Username), []byte(userID)},
+		}...)
+	} else if _, ok := updates["username"]; ok {
+		// Username was updated but is the same value, update the index anyway
+		pairs = append(pairs, [][2][]byte{
+			{[]byte(keyPrefixUserByName + user.Username), []byte(userID)},
 		}...)
 	}
 
@@ -164,23 +167,31 @@ func (s *Store) List(limit, offset int) ([]*storage.User, error) {
 	}
 
 	var users []*storage.User
-	count := 0
+	skipped := 0
+	returned := 0
 
 	err := s.db.Iterate([]byte(keyPrefixUser), func(key, value []byte) error {
-		if count >= offset {
-			var user storage.User
-			if err := storage.Decode(value, &user); err != nil {
-				return err
-			}
-			users = append(users, &user)
-			count++
-			if count >= offset+limit {
-				return nil
-			}
+		if skipped < offset {
+			skipped++
+			return nil
 		}
+
+		if returned >= limit {
+			return storage.ErrLimitReached
+		}
+
+		var user storage.User
+		if err := storage.Decode(value, &user); err != nil {
+			return err
+		}
+		users = append(users, &user)
+		returned++
 		return nil
 	})
 
+	if err == storage.ErrLimitReached {
+		return users, nil
+	}
 	if err != nil {
 		return nil, err
 	}

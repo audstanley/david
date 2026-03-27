@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -63,7 +65,7 @@ func init() {
 }
 
 func listUsers() error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -100,23 +102,29 @@ func listUsers() error {
 }
 
 func createUser(username string) error {
+	reader := bufio.NewReader(os.Stdin)
+
 	fmt.Print("Enter password: ")
-	var password string
-	fmt.Scan(&password)
+	password, _ := reader.ReadString('\n')
+	password = strings.TrimSpace(password)
 
 	fmt.Print("Enter email: ")
-	var email string
-	fmt.Scan(&email)
+	email, _ := reader.ReadString('\n')
+	email = strings.TrimSpace(email)
 
 	fmt.Print("Enter display name: ")
-	var displayName string
-	fmt.Scan(&displayName)
+	displayName, _ := reader.ReadString('\n')
+	displayName = strings.TrimSpace(displayName)
 
 	fmt.Print("Enter role (admin, manager, user): ")
-	var role string
-	fmt.Scan(&role)
+	role, _ := reader.ReadString('\n')
+	role = strings.TrimSpace(role)
 
-	dbMgr, err := storage.NewDBManager("./data/david")
+	if role != "admin" && role != "manager" && role != "user" {
+		return fmt.Errorf("invalid role: %s (must be admin, manager, or user)", role)
+	}
+
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -139,7 +147,10 @@ func createUser(username string) error {
 }
 
 func deleteUser(userID string) error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	reader := bufio.NewReader(os.Stdin)
+	_ = reader
+
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}

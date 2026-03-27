@@ -27,25 +27,25 @@ Example:
 }
 
 func shareCalendar(calendarUID, userID string) error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer dbMgr.CloseAll()
-
-	usersDB, err := dbMgr.Get(storage.DBUsers)
-	if err != nil {
-		return fmt.Errorf("failed to get users database: %w", err)
-	}
 
 	calsDB, err := dbMgr.Get(storage.DBCalendars)
 	if err != nil {
 		return fmt.Errorf("failed to get calendars database: %w", err)
 	}
 
+	usersDB, err := dbMgr.Get(storage.DBUsers)
+	if err != nil {
+		return fmt.Errorf("failed to get users database: %w", err)
+	}
+
 	clients := &Clients{
-		UserStore:     users.New(usersDB),
 		CalendarStore: calendars.New(calsDB),
+		UserStore:     users.New(usersDB),
 	}
 
 	calendar, err := clients.CalendarStore.GetByUID(calendarUID)

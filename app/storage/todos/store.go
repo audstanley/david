@@ -34,6 +34,10 @@ func (s *Store) Create(todo *storage.Todo) error {
 		return storage.ErrAlreadyExists
 	}
 
+	todo.Sequence = 1
+	todo.Created = now()
+	todo.LastModified = now()
+
 	data, err := storage.Encode(todo)
 	if err != nil {
 		return fmt.Errorf("failed to encode todo: %w", err)
@@ -125,18 +129,20 @@ func (s *Store) List(calendarUID string, limit, offset int) ([]*storage.Todo, er
 		}
 
 		if todo.CalendarUID == calendarUID {
-			if count >= offset {
-				todos = append(todos, &todo)
+			if count < offset {
 				count++
-				if count >= offset+limit {
-					return nil
-				}
+				return nil
+			}
+			todos = append(todos, &todo)
+			count++
+			if len(todos) >= limit {
+				return storage.ErrLimitReached
 			}
 		}
 		return nil
 	})
 
-	if err != nil {
+	if err != nil && err != storage.ErrLimitReached {
 		return nil, err
 	}
 

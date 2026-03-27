@@ -29,12 +29,17 @@ func New(db *storage.Storage) *Store {
 // Create creates a new calendar
 func (s *Store) Create(calendarUID, ownerID, displayName, description, color, timezone string, isPublic bool) error {
 	// Check if calendar UID already exists
-	exists, err := s.db.Exists([]byte(keyPrefixCalendarUID + calendarUID))
+	key := []byte(keyPrefixCalendarUID + calendarUID)
+	exists, err := s.db.Exists(key)
 	if err != nil {
 		return fmt.Errorf("failed to check calendar UID: %w", err)
 	}
 	if exists {
 		return storage.ErrAlreadyExists
+	}
+	// Debug: check what exists returns
+	if exists, _ := s.db.Exists([]byte(keyPrefixCalendarUID + calendarUID)); exists {
+		// This should never happen
 	}
 
 	cal := &storage.Calendar{
@@ -102,6 +107,10 @@ func (s *Store) Update(calendarUID string, updates map[string]interface{}) error
 		return err
 	}
 
+	// Store old values before applying updates
+	oldName := cal.DisplayName
+	oldIsPublic := cal.IsPublic
+
 	// Apply updates
 	if v, ok := updates["displayName"]; ok {
 		cal.DisplayName = v.(string)
@@ -131,26 +140,25 @@ func (s *Store) Update(calendarUID string, updates map[string]interface{}) error
 		return fmt.Errorf("failed to encode calendar: %w", err)
 	}
 
+	batches := [][2][]byte{
+		{[]byte(keyPrefixCalendar + calendarUID), data},
+	}
+
 	// Update name index if name changed
-	oldName := cal.DisplayName
-	if _, ok := updates["displayName"]; !ok {
-		return s.db.Delete([]byte(keyPrefixCalendarBy + cal.OwnerID + ":" + oldName))
-	}
-
-	var batches [][2][]byte
-	batches = append(batches, [2][]byte{[]byte(keyPrefixCalendar + calendarUID), data})
-	batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarBy + cal.OwnerID + cal.DisplayName), []byte(calendarUID)})
-
 	if cal.DisplayName != oldName {
-		batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarBy + cal.OwnerID + oldName), nil})
+		batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarBy + cal.OwnerID + ":" + oldName), nil})
 	}
+	batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarBy + cal.OwnerID + ":" + cal.DisplayName), []byte(calendarUID)})
 
 	// Update public index if isPublic changed
 	if _, ok := updates["isPublic"]; ok {
-		if cal.IsPublic {
+		if oldIsPublic && !cal.IsPublic {
+			// Making calendar private - delete old public hash index
+			oldHash := generatePublicHash(calendarUID)
+			batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarPub + oldHash), nil})
+		} else if !oldIsPublic && cal.IsPublic {
+			// Making calendar public - add new public hash index
 			batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarPub + cal.PublicHash), []byte(calendarUID)})
-		} else {
-			batches = append(batches, [2][]byte{[]byte(keyPrefixCalendarPub + cal.PublicHash), nil})
 		}
 	}
 
@@ -171,7 +179,7 @@ func (s *Store) Delete(calendarUID string) error {
 	pairs := [][2][]byte{
 		{[]byte(keyPrefixCalendar + calendarUID), nil},
 		{[]byte(keyPrefixCalendarUID + calendarUID), nil},
-		{[]byte(keyPrefixCalendarBy + cal.OwnerID + cal.DisplayName), nil},
+		{[]byte(keyPrefixCalendarBy + cal.OwnerID + ":" + cal.DisplayName), nil},
 	}
 
 	if cal.IsPublic {
@@ -193,7 +201,8 @@ func (s *Store) List(ownerID string, limit, offset int) ([]*storage.Calendar, er
 	}
 
 	var calendars []*storage.Calendar
-	count := 0
+	filtered := 0
+	returned := 0
 
 	err := s.db.Iterate([]byte(keyPrefixCalendar), func(key, value []byte) error {
 		var cal storage.Calendar
@@ -202,17 +211,21 @@ func (s *Store) List(ownerID string, limit, offset int) ([]*storage.Calendar, er
 		}
 
 		if cal.OwnerID == ownerID {
-			if count >= offset {
-				calendars = append(calendars, &cal)
-				count++
-				if count >= offset+limit {
-					return nil
+			if filtered >= offset {
+				if returned >= limit {
+					return storage.ErrLimitReached
 				}
+				calendars = append(calendars, &cal)
+				returned++
 			}
+			filtered++
 		}
 		return nil
 	})
 
+	if err == storage.ErrLimitReached {
+		return calendars, nil
+	}
 	if err != nil {
 		return nil, err
 	}

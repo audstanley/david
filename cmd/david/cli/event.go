@@ -63,7 +63,7 @@ func init() {
 }
 
 func listEvents(calendarUID string) error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -109,7 +109,7 @@ func listEvents(calendarUID string) error {
 }
 
 func showEvent(eventUID string) error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -140,7 +140,7 @@ func showEvent(eventUID string) error {
 }
 
 func deleteEvent(eventUID string) error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}

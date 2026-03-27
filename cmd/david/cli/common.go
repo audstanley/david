@@ -37,7 +37,14 @@ func loadConfig() *Config {
 
 // openDBManager opens all LevelDB databases
 func openDBManager(dataDir string) (*storage.DBManager, error) {
-	return storage.NewDBManager(dataDir)
+	dbMgr, err := storage.NewDBManager(dataDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := dbMgr.CreateAll(); err != nil {
+		return nil, err
+	}
+	return dbMgr, nil
 }
 
 // createClients creates storage clients for all databases

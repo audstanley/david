@@ -43,7 +43,7 @@ func init() {
 }
 
 func showStats() error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -140,7 +140,7 @@ func showStats() error {
 }
 
 func showAudit() error {
-	dbMgr, err := storage.NewDBManager("./data/david")
+	dbMgr, err := openDBManager("./data/david")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}

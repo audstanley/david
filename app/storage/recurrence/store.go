@@ -37,6 +37,7 @@ func (s *Store) Store(eventUID string, instances []storage.RecurrenceInstance) e
 	for _, inst := range existing {
 		pairs = append(pairs, [][2][]byte{
 			{[]byte(keyPrefixRecurrence + inst.InstanceUID), nil},
+			{[]byte(keyPrefixRecurrenceBy + eventUID + ":" + inst.InstanceUID), nil},
 		}...)
 	}
 
