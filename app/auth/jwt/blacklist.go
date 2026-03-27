@@ -27,6 +27,9 @@ func NewBlacklist(db *storage.Storage, cleanup time.Duration) *Blacklist {
 
 // Add adds a JWT ID to the blacklist
 func (b *Blacklist) Add(jti string, expiry time.Time) error {
+	if b.db == nil {
+		return nil // Skip if no database
+	}
 	data, err := storage.Encode(jti)
 	if err != nil {
 		return fmt.Errorf("failed to encode jti: %w", err)
@@ -44,6 +47,9 @@ func (b *Blacklist) Add(jti string, expiry time.Time) error {
 
 // Contains checks if a JWT ID is blacklisted
 func (b *Blacklist) Contains(jti string) bool {
+	if b.db == nil {
+		return false
+	}
 	_, err := b.db.Get([]byte(keyPrefixBlacklist + jti))
 	if err != nil {
 		if storage.IsNotFound(err) {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 // RefreshManager handles refresh token operations
@@ -51,10 +52,12 @@ func (m *RefreshManager) Refresh(refreshToken string) (*Tokens, error) {
 	}
 
 	// Rotate tokens (invalidate old refresh token)
-	if m.rotateTokens {
+	if m.rotateTokens && m.blacklist != nil {
 		jti, ok := claims["jti"].(string)
 		if ok {
-			_ = m.blacklist.Add(jti, time.Time{})
+			if err := m.blacklist.Add(jti, time.Time{}); err != nil {
+				log.WithError(err).Warn("Failed to add token to blacklist during rotation")
+			}
 		}
 	}
 
