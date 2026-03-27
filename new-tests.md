@@ -188,11 +188,45 @@ See `integration-tests.md` for comprehensive integration test plan.
 
 ## Next Steps
 
-1. **Review integration-tests.md** - Comprehensive plan for Phase 10
-2. **Start integration tests** - Begin with storage layer integration
-3. **Target 90%+ overall coverage** - Focus on gaps in each module
-4. **Fix remaining build warnings** - Unused imports in test files
-5. **Consider test cleanup** - Remove or update skipped tests
+### Phase 10: Integration Tests (IN PROGRESS)
+
+**Current Status:** 10/131 tasks complete (7.9% coverage for test helpers)
+
+1. ✅ **Phase 10.1.1 - Test Infrastructure** - COMPLETE
+   - Created `app/test/helpers.go` with common test utilities
+   - Created `app/test/user_storage_test.go` with 7 integration tests
+
+2. **Phase 10.1 - Storage Layer Integration** - IN PROGRESS (29%)
+   - [✅] User storage integration (7 tests passing)
+   - [⏳] Calendar storage integration - NEXT
+   - [⏳] Event storage integration
+   - [⏳] Todo storage integration
+   - [⏳] Journal storage integration
+   - [⏳] FreeBusy storage integration
+   - [⏳] TimeZone storage integration
+   - [⏳] Recurrence storage integration
+   - [⏳] Audit storage integration
+
+3. **Remaining Phases** (0% complete)
+   - Phase 10.2: iCalendar Parser Integration
+   - Phase 10.3: API Handler Integration
+   - Phase 10.4: CLI Integration
+   - Phase 10.5: Security Integration
+   - Phase 10.6: WebDAV/CalDAV Integration
+   - Phase 10.7: Multi-User Scenarios
+   - Phase 10.8: Error Handling Integration
+
+4. **Target 90%+ overall coverage** - Focus on gaps in each module
+5. **Fix remaining build warnings** - Unused imports in test files
+   - `app/storage/audit/audit_test.go`: unused "time" import
+   - `app/api/handlers/handlers_test.go`: unused models import
+
+## Files Created/Modified
+
+### Phase 10 Files
+- `app/test/helpers.go` - Test infrastructure (975 lines)
+- `app/test/user_storage_test.go` - User integration tests (7 tests)
+- `integration-tests.md` - Comprehensive Phase 10 plan (131 tasks)
 
 ## Notes
 
