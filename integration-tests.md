@@ -237,317 +237,6 @@ go test -bench=. ./...
 ### Phase 10.1: Storage Layer Integration (Target: 85%)
 
 #### 10.1.1 LevelDB Integration Tests
-- [ ] Create test storage helper
-- [ ] Test create operations with real DB
-- [ ] Test get operations with real DB
-- [ ] Test update operations with real DB
-- [ ] Test delete operations with real DB
-- [ ] Test list operations with pagination
-- [ ] Test batch operations
-- [ ] Test concurrent access
-- [ ] Test cross-entity relationships
-
-#### 10.1.2 User Storage Integration
-- [ ] Test user creation with real database
-- [ ] Test user get by ID
-- [ ] Test user get by username
-- [ ] Test user update
-- [ ] Test user deletion cascade
-- [ ] Test user list with pagination
-
-#### 10.1.3 Calendar Storage Integration
-- [ ] Test calendar CRUD with real DB
-- [ ] Test calendar share operations
-- [ ] Test calendar access checks
-- [ ] Test calendar list with pagination
-
-#### 10.1.4 Event Storage Integration
-- [ ] Test event CRUD with real DB
-- [ ] Test event date range queries
-- [ ] Test event recurrence storage
-- [ ] Test event sequence handling
-
-#### 10.1.5 Todo Storage Integration
-- [ ] Test todo CRUD with real DB
-- [ ] Test todo list with pagination
-
-#### 10.1.6 Journal Storage Integration
-- [ ] Test journal CRUD with real DB
-- [ ] Test journal list with pagination
-
-#### 10.1.7 FreeBusy Storage Integration
-- [ ] Test freebusy generation
-- [ ] Test freebusy storage and retrieval
-
-#### 10.1.8 TimeZone Storage Integration
-- [ ] Test timezone store
-- [ ] Test timezone retrieval
-
-#### 10.1.9 Recurrence Storage Integration
-- [ ] Test recurrence instance storage
-- [ ] Test recurrence instance retrieval
-
-#### 10.1.10 Audit Storage Integration
-- [ ] Test audit log creation
-- [ ] Test audit log queries
-
-### Phase 10.2: iCalendar Parser Integration (Target: 90%)
-
-#### 10.2.1 Basic Parsing Tests
-- [ ] Parse basic event ICS
-- [ ] Parse recurring event ICS
-- [ ] Parse TODO ICS
-- [ ] Parse JOURNAL ICS
-- [ ] Parse FREEBUSY ICS
-
-#### 10.2.2 Round-Trip Tests
-- [ ] Parse → Generate → Parse cycle for events
-- [ ] Parse → Generate → Parse cycle for todos
-- [ ] Parse → Generate → Parse cycle for journals
-- [ ] Verify UID consistency through round-trip
-- [ ] Verify sequence number handling
-
-#### 10.2.3 Recurrence Tests
-- [ ] Parse recurrence rules
-- [ ] Generate recurrence instances
-- [ ] Test EXDATE handling
-- [ ] Test RDATE handling
-
-#### 10.2.4 Timezone Tests
-- [ ] Parse VTIMEZONE components
-- [ ] Test timezone conversion
-- [ ] Test daylight saving time handling
-
-#### 10.2.5 Edge Cases
-- [ ] Parse invalid ICS (error handling)
-- [ ] Parse empty calendar
-- [ ] Parse calendar with multiple components
-
-### Phase 10.3: API Handler Integration (Target: 95%)
-
-#### 10.3.1 Test Setup
-- [ ] Create test server with httptest
-- [ ] Create mock storage for API tests
-- [ ] Create test user fixtures
-- [ ] Create test calendar fixtures
-
-#### 10.3.2 Auth Handler Integration
-- [ ] Test login endpoint
-- [ ] Test token refresh endpoint
-- [ ] Test logout/blacklist endpoint
-- [ ] Test invalid credentials handling
-- [ ] Test token expiration handling
-
-#### 10.3.3 Calendar Handler Integration
-- [ ] Test calendar creation
-- [ ] Test calendar retrieval
-- [ ] Test calendar update
-- [ ] Test calendar deletion
-- [ ] Test calendar listing
-- [ ] Test calendar sharing
-- [ ] Test calendar access control
-
-#### 10.3.4 Event Handler Integration
-- [ ] Test event creation
-- [ ] Test event retrieval
-- [ ] Test event update
-- [ ] Test event deletion
-- [ ] Test event listing
-- [ ] Test date range queries
-
-#### 10.3.5 Todo Handler Integration
-- [ ] Test todo creation
-- [ ] Test todo retrieval
-- [ ] Test todo update
-- [ ] Test todo deletion
-- [ ] Test todo listing
-
-#### 10.3.6 Journal Handler Integration
-- [ ] Test journal creation
-- [ ] Test journal retrieval
-- [ ] Test journal update
-- [ ] Test journal deletion
-- [ ] Test journal listing
-
-#### 10.3.7 User Handler Integration
-- [ ] Test user creation
-- [ ] Test user retrieval
-- [ ] Test user update
-- [ ] Test user deletion
-- [ ] Test user listing
-
-#### 10.3.8 Error Handling
-- [ ] Test validation errors
-- [ ] Test not found errors
-- [ ] Test permission errors
-- [ ] Test server errors
-
-### Phase 10.4: CLI Integration (Target: 80%)
-
-#### 10.4.1 Test Setup
-- [ ] Create CLI test helper
-- [ ] Create mock storage for CLI
-- [ ] Create test database setup
-
-#### 10.4.2 Import/Export Tests
-- [ ] Test import single ICS file
-- [ ] Test import directory
-- [ ] Test export single event
-- [ ] Test export calendar
-- [ ] Test export date range
-
-#### 10.4.3 User Commands
-- [ ] Test user list command
-- [ ] Test user create command
-- [ ] Test user delete command
-
-#### 10.4.4 Calendar Commands
-- [ ] Test calendar list command
-- [ ] Test calendar show command
-- [ ] Test calendar create command
-- [ ] Test calendar delete command
-- [ ] Test calendar share command
-
-#### 10.4.5 Event Commands
-- [ ] Test event list command
-- [ ] Test event show command
-- [ ] Test event delete command
-
-#### 10.4.6 Admin Commands
-- [ ] Test admin stats command
-- [ ] Test admin audit command
-
-### Phase 10.5: Security Integration (Target: 90%)
-
-#### 10.5.1 JWT with Real Storage
-- [ ] Test token generation with blacklist DB
-- [ ] Test token verification with blacklist
-- [ ] Test token revocation
-- [ ] Test blacklist persistence
-
-#### 10.5.2 Refresh Token Integration
-- [ ] Test refresh token rotation with DB
-- [ ] Test old token revocation
-- [ ] Test refresh token expiration
-
-#### 10.5.3 Basic Auth Integration
-- [ ] Test basic auth with real users
-- [ ] Test basic auth permissions
-- [ ] Test basic auth failures
-
-#### 10.5.4 RBAC Integration
-- [ ] Test role-based permissions
-- [ ] Test permission checks in handlers
-- [ ] Test unauthorized access blocking
-
-### Phase 10.6: WebDAV/CalDAV Protocol Integration (Target: 85%)
-
-#### 10.6.1 Basic Operations
-- [ ] Test PROPFIND on root
-- [ ] Test PROPFIND on calendar
-- [ ] Test PROPFIND on event
-- [ ] Test MKCOL for calendar creation
-- [ ] Test PUT for event creation
-
-#### 10.6.2 Advanced Operations
-- [ ] Test PROPPATCH
-- [ ] Test COPY operation
-- [ ] Test MOVE operation
-- [ ] Test LOCK operation
-- [ ] Test UNLOCK operation
-
-#### 10.6.3 CalDAV Specific
-- [ ] Test REPORT for calendar queries
-- [ ] Test calendar query with date range
-- [ ] Test calendar query with UID
-
-### Phase 10.7: Multi-User Scenarios (Target: 85%)
-
-#### 10.7.1 Shared Access
-- [ ] Test two users accessing shared calendar
-- [ ] Test read-only access
-- [ ] Test write access
-- [ ] Test admin access
-
-#### 10.7.2 Concurrent Operations
-- [ ] Test concurrent event creation
-- [ ] Test concurrent event updates
-- [ ] Test conflict detection
-- [ ] Test sequence number handling
-
-#### 10.7.3 Access Control
-- [ ] Test user without access cannot see calendar
-- [ ] Test user with read access cannot modify
-- [ ] Test user with write access can modify
-- [ ] Test calendar owner permissions
-
-### Phase 10.8: Error Handling Integration (Target: 90%)
-
-#### 10.8.1 Database Errors
-- [ ] Test disk full scenario
-- [ ] Test database corruption handling
-- [ ] Test connection failures
-- [ ] Test recovery from errors
-
-#### 10.8.2 Network Errors
-- [ ] Test timeout handling
-- [ ] Test connection reset
-- [ ] Test partial data handling
-
-#### 10.8.3 Permission Errors
-- [ ] Test unauthorized access
-- [ ] Test insufficient permissions
-- [ ] Test admin bypass
-
-#### 10.8.4 Input Validation
-- [ ] Test invalid email handling
-- [ ] Test invalid dates
-- [ ] Test invalid ICS content
-- [ ] Test SQL injection attempts
-
-#### 10.8.5 Panic Recovery
-- [ ] Test panic recovery in handlers
-- [ ] Test error logging
-- [ ] Test cleanup on panic
-
-## Test Implementation Order
-
-### Week 1: Foundation
-1. [ ] Create test helpers and fixtures
-2. [ ] Storage integration tests (10.1)
-3. [ ] iCalendar parser integration (10.2)
-
-### Week 2: API Layer
-4. [ ] API handler integration (10.3)
-5. [ ] Security integration (10.5)
-
-### Week 3: CLI & Protocol
-6. [ ] CLI integration (10.4)
-7. [ ] WebDAV/CalDAV integration (10.6)
-
-### Week 4: Advanced Scenarios
-8. [ ] Multi-user scenarios (10.7)
-9. [ ] Error handling integration (10.8)
-10. [ ] Performance and stress tests
-
-## Progress Tracking
-
-- Phase 10.1: Storage Layer Integration: 0/11 tasks
-- Phase 10.2: iCalendar Parser Integration: 0/14 tasks
-- Phase 10.3: API Handler Integration: 0/30 tasks
-- Phase 10.4: CLI Integration: 0/15 tasks
-- Phase 10.5: Security Integration: 0/11 tasks
-- Phase 10.6: WebDAV/CalDAV Integration: 0/10 tasks
-- Phase 10.7: Multi-User Scenarios: 0/11 tasks
-- Phase 10.8: Error Handling Integration: 0/15 tasks
-
-**Total: 0/117 tasks complete**
-
-## TODOs - Integration Test Implementation
-
-### Phase 10.1: Storage Layer Integration (Target: 85%)
-
-#### 10.1.1 LevelDB Integration Tests
 - [x] Create test storage helper
 - [x] Test create operations with real DB
 - [x] Test get operations with real DB
@@ -605,89 +294,89 @@ go test -bench=. ./...
 ### Phase 10.2: iCalendar Parser Integration (Target: 90%)
 
 #### 10.2.1 Basic Parsing Tests
-- [ ] Parse basic event ICS
-- [ ] Parse recurring event ICS
-- [ ] Parse TODO ICS
-- [ ] Parse JOURNAL ICS
-- [ ] Parse FREEBUSY ICS
+- [x] Parse basic event ICS
+- [x] Parse recurring event ICS
+- [x] Parse TODO ICS
+- [x] Parse JOURNAL ICS
+- [x] Parse FREEBUSY ICS
 
 #### 10.2.2 Round-Trip Tests
-- [ ] Parse → Generate → Parse cycle for events
+- [x] Parse → Generate → Parse cycle for events
 - [ ] Parse → Generate → Parse cycle for todos
 - [ ] Parse → Generate → Parse cycle for journals
-- [ ] Verify UID consistency through round-trip
+- [x] Verify UID consistency through round-trip
 - [ ] Verify sequence number handling
 
 #### 10.2.3 Recurrence Tests
-- [ ] Parse recurrence rules
+- [x] Parse recurrence rules
 - [ ] Generate recurrence instances
-- [ ] Test EXDATE handling
+- [x] Test EXDATE handling
 - [ ] Test RDATE handling
 
 #### 10.2.4 Timezone Tests
-- [ ] Parse VTIMEZONE components
+- [x] Parse VTIMEZONE components
 - [ ] Test timezone conversion
 - [ ] Test daylight saving time handling
 
 #### 10.2.5 Edge Cases
-- [ ] Parse invalid ICS (error handling)
-- [ ] Parse empty calendar
-- [ ] Parse calendar with multiple components
+- [x] Parse invalid ICS (error handling)
+- [x] Parse empty calendar
+- [x] Parse calendar with multiple components
 
 ### Phase 10.3: API Handler Integration (Target: 95%)
 
 #### 10.3.1 Test Setup
-- [ ] Create test server with httptest
-- [ ] Create mock storage for API tests
-- [ ] Create test user fixtures
-- [ ] Create test calendar fixtures
+- [x] Create test server with httptest
+- [x] Create mock storage for API tests
+- [x] Create test user fixtures
+- [x] Create test calendar fixtures
 
 #### 10.3.2 Auth Handler Integration
-- [ ] Test login endpoint
-- [ ] Test token refresh endpoint
-- [ ] Test logout/blacklist endpoint
-- [ ] Test invalid credentials handling
-- [ ] Test token expiration handling
+- [x] Test login endpoint
+- [x] Test token refresh endpoint
+- [x] Test logout/blacklist endpoint
+- [x] Test invalid credentials handling
+- [x] Test token expiration handling
 
 #### 10.3.3 Calendar Handler Integration
-- [ ] Test calendar creation
-- [ ] Test calendar retrieval
-- [ ] Test calendar update
-- [ ] Test calendar deletion
-- [ ] Test calendar listing
-- [ ] Test calendar sharing
+- [x] Test calendar creation
+- [x] Test calendar retrieval
+- [x] Test calendar update
+- [x] Test calendar deletion
+- [x] Test calendar listing
+- [x] Test calendar sharing
 - [ ] Test calendar access control
 
 #### 10.3.4 Event Handler Integration
-- [ ] Test event creation
-- [ ] Test event retrieval
-- [ ] Test event update
-- [ ] Test event deletion
-- [ ] Test event listing
+- [x] Test event creation
+- [x] Test event retrieval
+- [x] Test event update
+- [x] Test event deletion
+- [x] Test event listing
 - [ ] Test date range queries
 
-#### 10.3.5 Todo Handler Integration
+#### 10.3.5 Todo Handler Integration (Not implemented)
 - [ ] Test todo creation
 - [ ] Test todo retrieval
 - [ ] Test todo update
 - [ ] Test todo deletion
 - [ ] Test todo listing
 
-#### 10.3.6 Journal Handler Integration
+#### 10.3.6 Journal Handler Integration (Not implemented)
 - [ ] Test journal creation
 - [ ] Test journal retrieval
 - [ ] Test journal update
 - [ ] Test journal deletion
 - [ ] Test journal listing
 
-#### 10.3.7 User Handler Integration
+#### 10.3.7 User Handler Integration (Not implemented)
 - [ ] Test user creation
 - [ ] Test user retrieval
 - [ ] Test user update
 - [ ] Test user deletion
 - [ ] Test user listing
 
-#### 10.3.8 Error Handling
+#### 10.3.8 Error Handling (Not implemented)
 - [ ] Test validation errors
 - [ ] Test not found errors
 - [ ] Test permission errors
@@ -731,25 +420,25 @@ go test -bench=. ./...
 ### Phase 10.5: Security Integration (Target: 90%)
 
 #### 10.5.1 JWT with Real Storage
-- [ ] Test token generation with blacklist DB
-- [ ] Test token verification with blacklist
-- [ ] Test token revocation
-- [ ] Test blacklist persistence
+- [x] Test token generation with blacklist DB
+- [x] Test token verification with blacklist
+- [x] Test token revocation
+- [x] Test blacklist persistence
 
 #### 10.5.2 Refresh Token Integration
-- [ ] Test refresh token rotation with DB
-- [ ] Test old token revocation
-- [ ] Test refresh token expiration
+- [x] Test refresh token rotation with DB
+- [x] Test old token revocation
+- [x] Test refresh token expiration
 
 #### 10.5.3 Basic Auth Integration
-- [ ] Test basic auth with real users
-- [ ] Test basic auth permissions
-- [ ] Test basic auth failures
+- [x] Test basic auth with real users
+- [x] Test basic auth permissions
+- [x] Test basic auth failures
 
 #### 10.5.4 RBAC Integration
-- [ ] Test role-based permissions
-- [ ] Test permission checks in handlers
-- [ ] Test unauthorized access blocking
+- [x] Test role-based permissions
+- [x] Test permission checks in handlers
+- [x] Test unauthorized access blocking
 
 ### Phase 10.6: WebDAV/CalDAV Protocol Integration (Target: 85%)
 
@@ -824,12 +513,12 @@ go test -bench=. ./...
 ## Progress Summary
 
 - Phase 10.1: Storage Layer Integration: 10/35 tasks (29%)
-- Phase 10.2: iCalendar Parser Integration: 0/14 tasks (0%)
-- Phase 10.3: API Handler Integration: 0/30 tasks (0%)
+- Phase 10.2: iCalendar Parser Integration: 10/14 tasks (71%)
+- Phase 10.3: API Handler Integration: 15/30 tasks (50%)
 - Phase 10.4: CLI Integration: 0/15 tasks (0%)
-- Phase 10.5: Security Integration: 0/11 tasks (0%)
+- Phase 10.5: Security Integration: 11/11 tasks (100%)
 - Phase 10.6: WebDAV/CalDAV Integration: 0/10 tasks (0%)
 - Phase 10.7: Multi-User Scenarios: 0/11 tasks (0%)
 - Phase 10.8: Error Handling Integration: 0/15 tasks (0%)
 
-**Total: 10/131 tasks complete**
+**Total: 46/131 tasks complete**
