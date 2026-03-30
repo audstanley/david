@@ -3,17 +3,74 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/audstanley/david/app/api/errors"
+	"github.com/audstanley/david/app/storage"
+	"github.com/audstanley/david/app/storage/calendars"
+	"github.com/audstanley/david/app/storage/events"
+	"github.com/audstanley/david/app/storage/users"
 )
+
+// createMockStorage creates a minimal storage for unit tests
+func createMockStorage(t *testing.T) *storage.Storage {
+	tmpDir := "/tmp/david-test-" + fmt.Sprintf("%d", time.Now().UnixNano()) + "-" + t.Name()
+	db, err := storage.NewStorage(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create storage: %v", err)
+	}
+	return db
+}
+
+// createTestCalendar creates a test calendar in the given storage
+func createTestCalendar(t *testing.T, db *storage.Storage) {
+	calendarStore := calendars.New(db)
+	err := calendarStore.Create("cal-1", "user-1", "Test Calendar", "Test Description", "#ff0000", "UTC", false)
+	if err != nil {
+		t.Fatalf("Failed to create test calendar: %v", err)
+	}
+}
+
+// createTestEvent creates a test event in the given storage
+func createTestEvent(t *testing.T, db *storage.Storage) {
+	eventStore := events.New(db)
+	dtStart, _ := time.Parse(time.RFC3339, "2026-03-25T14:00:00Z")
+	dtEnd, _ := time.Parse(time.RFC3339, "2026-03-25T15:00:00Z")
+	event := &storage.Event{
+		UID:         "event-1",
+		CalendarUID: "cal-1",
+		Summary:     "Test Event",
+		Description: "Test Description",
+		Location:    "Test Location",
+		DTStart:     dtStart,
+		DTEnd:       dtEnd,
+	}
+	err := eventStore.Create(event)
+	if err != nil {
+		t.Fatalf("Failed to create test event: %v", err)
+	}
+}
 
 // Auth Handler Tests
 
 func TestAuthHandlerLoginSuccess(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
+
+	// Create test user
+	userStore := users.New(db)
+	hash, err := userStore.HashPassword("password")
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+	err = userStore.Create("user-1", "admin", hash, "admin@test.com", "Admin User", "admin")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 
 	body := bytes.NewBufferString(`{"username":"admin","password":"password"}`)
 	req := httptest.NewRequest("POST", "/login", body)
@@ -36,7 +93,8 @@ func TestAuthHandlerLoginSuccess(t *testing.T) {
 }
 
 func TestAuthHandlerLoginInvalidCredentials(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"username":"admin","password":"wrongpassword"}`)
 	req := httptest.NewRequest("POST", "/login", body)
@@ -50,7 +108,8 @@ func TestAuthHandlerLoginInvalidCredentials(t *testing.T) {
 }
 
 func TestAuthHandlerLoginInvalidJSON(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`invalid json`)
 	req := httptest.NewRequest("POST", "/login", body)
@@ -64,7 +123,8 @@ func TestAuthHandlerLoginInvalidJSON(t *testing.T) {
 }
 
 func TestAuthHandlerLoginMissingFields(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"username":"admin"}`)
 	req := httptest.NewRequest("POST", "/login", body)
@@ -78,9 +138,38 @@ func TestAuthHandlerLoginMissingFields(t *testing.T) {
 }
 
 func TestAuthHandlerRefreshSuccess(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
-	body := bytes.NewBufferString(`{"refresh_token":"mock_refresh_test_20260324120000"}`)
+	// Create test user
+	userStore := users.New(db)
+	hash, _ := userStore.HashPassword("password")
+	err := userStore.Create("user-1", "testuser", hash, "test@test.com", "Test User", "user")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Login to get valid refresh token
+	loginBody := bytes.NewBufferString(`{"username":"testuser","password":"password"}`)
+	loginReq := httptest.NewRequest("POST", "/login", loginBody)
+	loginW := httptest.NewRecorder()
+	h.LoginHandler(loginW, loginReq)
+
+	if loginW.Code != http.StatusOK {
+		t.Fatalf("Login failed: %d", loginW.Code)
+	}
+
+	var loginResp map[string]interface{}
+	if err := json.NewDecoder(loginW.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("Failed to decode login response: %v", err)
+	}
+
+	refreshToken, ok := loginResp["refresh_token"].(string)
+	if !ok {
+		t.Fatal("No refresh token in response")
+	}
+
+	body := bytes.NewBufferString(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken))
 	req := httptest.NewRequest("POST", "/refresh", body)
 	w := httptest.NewRecorder()
 
@@ -101,7 +190,8 @@ func TestAuthHandlerRefreshSuccess(t *testing.T) {
 }
 
 func TestAuthHandlerRefreshInvalidToken(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"refresh_token":""}`)
 	req := httptest.NewRequest("POST", "/refresh", body)
@@ -115,7 +205,8 @@ func TestAuthHandlerRefreshInvalidToken(t *testing.T) {
 }
 
 func TestAuthHandlerLogoutSuccess(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	req := httptest.NewRequest("POST", "/logout", nil)
 	w := httptest.NewRecorder()
@@ -128,7 +219,16 @@ func TestAuthHandlerLogoutSuccess(t *testing.T) {
 }
 
 func TestAuthHandlerVerifyValidToken(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
+
+	// Create test user
+	userStore := users.New(db)
+	hash, _ := userStore.HashPassword("password")
+	err := userStore.Create("user-1", "testuser", hash, "test@test.com", "Test User", "user")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/verify", nil)
 	req.Header.Set("Authorization", "Bearer mock_user-1_user_20260324120000")
@@ -145,13 +245,15 @@ func TestAuthHandlerVerifyValidToken(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if !resp["valid"].(bool) {
+	valid, ok := resp["valid"].(bool)
+	if !ok || !valid {
 		t.Error("Token should be valid")
 	}
 }
 
 func TestAuthHandlerVerifyInvalidToken(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	req := httptest.NewRequest("GET", "/verify", nil)
 	req.Header.Set("Authorization", "Bearer invalid_token")
@@ -165,7 +267,8 @@ func TestAuthHandlerVerifyInvalidToken(t *testing.T) {
 }
 
 func TestAuthHandlerVerifyNoToken(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	req := httptest.NewRequest("GET", "/verify", nil)
 	w := httptest.NewRecorder()
@@ -178,7 +281,8 @@ func TestAuthHandlerVerifyNoToken(t *testing.T) {
 }
 
 func TestAuthHandlerCreateAPIKey(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"name":"Test Key","permissions":["calendar.read"],"expiry_days":30}`)
 	req := httptest.NewRequest("POST", "/api-keys", body)
@@ -201,7 +305,8 @@ func TestAuthHandlerCreateAPIKey(t *testing.T) {
 }
 
 func TestAuthHandlerCreateAPIKeyInvalidName(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"name":"","permissions":["calendar.read"],"expiry_days":30}`)
 	req := httptest.NewRequest("POST", "/api-keys", body)
@@ -215,7 +320,8 @@ func TestAuthHandlerCreateAPIKeyInvalidName(t *testing.T) {
 }
 
 func TestAuthHandlerCreateAPIKeyInvalidExpiry(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	body := bytes.NewBufferString(`{"name":"Test Key","permissions":["calendar.read"],"expiry_days":0}`)
 	req := httptest.NewRequest("POST", "/api-keys", body)
@@ -229,7 +335,8 @@ func TestAuthHandlerCreateAPIKeyInvalidExpiry(t *testing.T) {
 }
 
 func TestAuthHandlerListAPIKeys(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	req := httptest.NewRequest("GET", "/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -242,7 +349,8 @@ func TestAuthHandlerListAPIKeys(t *testing.T) {
 }
 
 func TestAuthHandlerRevokeAPIKey(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	db := createMockStorage(t)
+	h := NewAuthHandler("test-secret", db)
 
 	req := httptest.NewRequest("DELETE", "/api-keys/1", nil)
 	w := httptest.NewRecorder()
@@ -289,7 +397,15 @@ func TestParseBasicAuthNoBasicPrefix(t *testing.T) {
 // Calendar Handler Tests
 
 func TestCalendarHandlerListSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
+
+	// Create a test calendar for unit tests
+	calendarStore := calendars.New(db)
+	err := calendarStore.Create("cal-1", "user-1", "Test Calendar", "Test Desc", "#ff0000", "UTC", false)
+	if err != nil {
+		t.Fatalf("Failed to create test calendar: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/calendars", nil)
 	w := httptest.NewRecorder()
@@ -311,9 +427,17 @@ func TestCalendarHandlerListSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerGetSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
-	req := httptest.NewRequest("GET", "/calendars/cal-1", nil)
+	// Create test calendar
+	calendarStore := calendars.New(db)
+	err := calendarStore.Create("cal-1", "user-1", "Test Calendar", "Test Description", "#ff0000", "UTC", false)
+	if err != nil {
+		t.Fatalf("Failed to create test calendar: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/calendars?uid=cal-1", nil)
 	w := httptest.NewRecorder()
 
 	h.GetCalendarHandler(w, req)
@@ -333,7 +457,8 @@ func TestCalendarHandlerGetSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerCreateSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	body := bytes.NewBufferString(`{"display_name":"Test Calendar","description":"Test Desc","color":"#ff0000","timezone":"UTC","is_public":false}`)
 	req := httptest.NewRequest("POST", "/calendars", body)
@@ -356,7 +481,8 @@ func TestCalendarHandlerCreateSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerCreateMissingDisplayName(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	body := bytes.NewBufferString(`{"description":"Test Desc"}`)
 	req := httptest.NewRequest("POST", "/calendars", body)
@@ -370,7 +496,8 @@ func TestCalendarHandlerCreateMissingDisplayName(t *testing.T) {
 }
 
 func TestCalendarHandlerCreateInvalidTimezone(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	body := bytes.NewBufferString(`{"display_name":"Test Calendar","timezone":"nonexistent-tz"}`)
 	req := httptest.NewRequest("POST", "/calendars", body)
@@ -384,7 +511,8 @@ func TestCalendarHandlerCreateInvalidTimezone(t *testing.T) {
 }
 
 func TestCalendarHandlerCreateDisplayNameTooLong(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	longName := ""
 	for i := 0; i < 201; i++ {
@@ -403,9 +531,13 @@ func TestCalendarHandlerCreateDisplayNameTooLong(t *testing.T) {
 }
 
 func TestCalendarHandlerUpdateSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
-	req := httptest.NewRequest("PUT", "/calendars/cal-1", nil)
+	createTestCalendar(t, db)
+
+	body := bytes.NewBufferString(`{"display_name":"Updated Calendar"}`)
+	req := httptest.NewRequest("PUT", "/calendars?uid=cal-1", body)
 	w := httptest.NewRecorder()
 
 	h.UpdateCalendarHandler(w, req)
@@ -416,9 +548,12 @@ func TestCalendarHandlerUpdateSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerDeleteSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
-	req := httptest.NewRequest("DELETE", "/calendars/cal-1", nil)
+	createTestCalendar(t, db)
+
+	req := httptest.NewRequest("DELETE", "/calendars?uid=cal-1", nil)
 	w := httptest.NewRecorder()
 
 	h.DeleteCalendarHandler(w, req)
@@ -429,10 +564,13 @@ func TestCalendarHandlerDeleteSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerGrantShare(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
+
+	createTestCalendar(t, db)
 
 	body := bytes.NewBufferString(`{"user_id":"user-123","role":"read"}`)
-	req := httptest.NewRequest("POST", "/calendars/cal-1/shares", body)
+	req := httptest.NewRequest("POST", "/calendars?uid=cal-1/shares", body)
 	w := httptest.NewRecorder()
 
 	h.GrantShareHandler(w, req)
@@ -452,7 +590,8 @@ func TestCalendarHandlerGrantShare(t *testing.T) {
 }
 
 func TestCalendarHandlerGrantShareInvalidRole(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	body := bytes.NewBufferString(`{"user_id":"user-123","role":"invalid"}`)
 	req := httptest.NewRequest("POST", "/calendars/cal-1/shares", body)
@@ -466,9 +605,12 @@ func TestCalendarHandlerGrantShareInvalidRole(t *testing.T) {
 }
 
 func TestCalendarHandlerRevokeShare(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
-	req := httptest.NewRequest("DELETE", "/calendars/cal-1/shares/1", nil)
+	createTestCalendar(t, db)
+
+	req := httptest.NewRequest("DELETE", "/calendars?uid=cal-1&share_id=1", nil)
 	w := httptest.NewRecorder()
 
 	h.RevokeShareHandler(w, req)
@@ -479,7 +621,8 @@ func TestCalendarHandlerRevokeShare(t *testing.T) {
 }
 
 func TestCalendarHandlerExportSuccess(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
 	req := httptest.NewRequest("GET", "/calendars/cal-1/export", nil)
 	w := httptest.NewRecorder()
@@ -497,9 +640,12 @@ func TestCalendarHandlerExportSuccess(t *testing.T) {
 }
 
 func TestCalendarHandlerGetStats(t *testing.T) {
-	h := NewCalendarHandler()
+	db := createMockStorage(t)
+	h := NewCalendarHandler(db)
 
-	req := httptest.NewRequest("GET", "/calendars/cal-1/stats", nil)
+	createTestCalendar(t, db)
+
+	req := httptest.NewRequest("GET", "/calendars?uid=cal-1&endpoint=stats", nil)
 	w := httptest.NewRecorder()
 
 	h.GetCalendarStatsHandler(w, req)
@@ -521,9 +667,13 @@ func TestCalendarHandlerGetStats(t *testing.T) {
 // Event Handler Tests
 
 func TestEventHandlerListSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
-	req := httptest.NewRequest("GET", "/events", nil)
+	createTestCalendar(t, db)
+	createTestEvent(t, db)
+
+	req := httptest.NewRequest("GET", "/events?calendar_uid=cal-1&start=2026-03-25T00:00:00Z&end=2026-03-25T23:59:59Z", nil)
 	w := httptest.NewRecorder()
 
 	h.ListEventsHandler(w, req)
@@ -543,9 +693,13 @@ func TestEventHandlerListSuccess(t *testing.T) {
 }
 
 func TestEventHandlerGetSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
-	req := httptest.NewRequest("GET", "/events/event-1", nil)
+	createTestCalendar(t, db)
+	createTestEvent(t, db)
+
+	req := httptest.NewRequest("GET", "/events?uid=event-1", nil)
 	w := httptest.NewRecorder()
 
 	h.GetEventHandler(w, req)
@@ -565,7 +719,8 @@ func TestEventHandlerGetSuccess(t *testing.T) {
 }
 
 func TestEventHandlerCreateSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
 	body := bytes.NewBufferString(`{"summary":"Test Event","description":"Test Desc","dtstart":"2026-03-25T14:00:00Z","dtend":"2026-03-25T15:00:00Z"}`)
 	req := httptest.NewRequest("POST", "/events", body)
@@ -588,7 +743,8 @@ func TestEventHandlerCreateSuccess(t *testing.T) {
 }
 
 func TestEventHandlerCreateMissingSummary(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
 	body := bytes.NewBufferString(`{"dtstart":"2026-03-25T14:00:00Z"}`)
 	req := httptest.NewRequest("POST", "/events", body)
@@ -602,7 +758,8 @@ func TestEventHandlerCreateMissingSummary(t *testing.T) {
 }
 
 func TestEventHandlerCreateMissingDTStart(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
 	body := bytes.NewBufferString(`{"summary":"Test Event"}`)
 	req := httptest.NewRequest("POST", "/events", body)
@@ -616,9 +773,14 @@ func TestEventHandlerCreateMissingDTStart(t *testing.T) {
 }
 
 func TestEventHandlerUpdateSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
-	req := httptest.NewRequest("PUT", "/events/event-1", nil)
+	createTestCalendar(t, db)
+	createTestEvent(t, db)
+
+	body := bytes.NewBufferString(`{"summary":"Updated Event"}`)
+	req := httptest.NewRequest("PUT", "/events?uid=event-1", body)
 	w := httptest.NewRecorder()
 
 	h.UpdateEventHandler(w, req)
@@ -629,9 +791,13 @@ func TestEventHandlerUpdateSuccess(t *testing.T) {
 }
 
 func TestEventHandlerDeleteSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
-	req := httptest.NewRequest("DELETE", "/events/event-1", nil)
+	createTestCalendar(t, db)
+	createTestEvent(t, db)
+
+	req := httptest.NewRequest("DELETE", "/events?uid=event-1", nil)
 	w := httptest.NewRecorder()
 
 	h.DeleteEventHandler(w, req)
@@ -642,7 +808,8 @@ func TestEventHandlerDeleteSuccess(t *testing.T) {
 }
 
 func TestEventHandlerExportSuccess(t *testing.T) {
-	h := NewEventHandler()
+	db := createMockStorage(t)
+	h := NewEventHandler(db)
 
 	req := httptest.NewRequest("GET", "/events/event-1/export", nil)
 	w := httptest.NewRecorder()

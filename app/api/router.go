@@ -53,7 +53,7 @@ func (r *Router) SetupRoutes() {
 	api := r.mux.PathPrefix("/api").Subrouter()
 
 	// Auth routes
-	auth := handlers.NewAuthHandler("secret-key")
+	auth := handlers.NewAuthHandler("secret-key", nil)
 	api.HandleFunc("/auth/login", auth.LoginHandler).Methods("POST")
 	api.HandleFunc("/auth/refresh", auth.RefreshHandler).Methods("POST")
 	api.HandleFunc("/auth/logout", auth.LogoutHandler).Methods("POST")
@@ -63,7 +63,7 @@ func (r *Router) SetupRoutes() {
 	api.HandleFunc("/auth/api-key/{id}", auth.RevokeAPIKeyHandler).Methods("DELETE")
 
 	// Calendar routes
-	calHandler := handlers.NewCalendarHandler()
+	calHandler := handlers.NewCalendarHandler(nil)
 	api.HandleFunc("/calendars", calHandler.ListCalendarsHandler).Methods("GET")
 	api.HandleFunc("/calendars/{uid}", calHandler.GetCalendarHandler).Methods("GET")
 	api.HandleFunc("/calendars", calHandler.CreateCalendarHandler).Methods("POST")
@@ -76,7 +76,7 @@ func (r *Router) SetupRoutes() {
 	api.HandleFunc("/calendars/{uid}/stats", calHandler.GetCalendarStatsHandler).Methods("GET")
 
 	// Event routes
-	eventHandler := handlers.NewEventHandler()
+	eventHandler := handlers.NewEventHandler(nil)
 	api.HandleFunc("/events", eventHandler.ListEventsHandler).Methods("GET")
 	api.HandleFunc("/events/{uid}", eventHandler.GetEventHandler).Methods("GET")
 	api.HandleFunc("/events", eventHandler.CreateEventHandler).Methods("POST")

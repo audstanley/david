@@ -3,15 +3,18 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/audstanley/david/app"
 	"github.com/audstanley/david/app/api/handlers"
 	"github.com/audstanley/david/app/storage"
+	"github.com/audstanley/david/app/storage/calendars"
+	"github.com/audstanley/david/app/storage/events"
 	"github.com/audstanley/david/app/storage/users"
-	"github.com/audstanley/david/app/test"
 )
 
 // TestServer wraps a test server with storage and handlers
@@ -25,30 +28,57 @@ type TestServer struct {
 
 // SetupTestServer creates a test server with real storage
 func SetupTestServer(t *testing.T) *TestServer {
-	storageInstance, dir := test.CreateTempStorage(t)
+	tmpDir := t.TempDir()
+	storageInstance, err := storage.NewStorage(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create storage: %v", err)
+	}
 
 	// Create a test user
 	userStore := users.New(storageInstance)
 	hash := app.GenHash([]byte("password"))
-	err := userStore.Create("user-1", "admin", hash, "admin@test.com", "Admin User", "admin")
+	err = userStore.Create("user-1", "admin", hash, "admin@test.com", "Admin User", "admin")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
+	// Create a test calendar
+	calendarStore := calendars.New(storageInstance)
+	err = calendarStore.Create("cal-1", "user-1", "Test Calendar", "Test Description", "#ff0000", "UTC", false)
+	if err != nil {
+		t.Fatalf("Failed to create test calendar: %v", err)
+	}
+
+	// Create a test event
+	eventStore := events.New(storageInstance)
+	dtStart, _ := time.Parse(time.RFC3339, "2026-03-25T14:00:00Z")
+	dtEnd, _ := time.Parse(time.RFC3339, "2026-03-25T15:00:00Z")
+	event := &storage.Event{
+		UID:         "event-1",
+		CalendarUID: "cal-1",
+		Summary:     "Test Event",
+		Description: "Test Description",
+		Location:    "Test Location",
+		DTStart:     dtStart,
+		DTEnd:       dtEnd,
+	}
+	err = eventStore.Create(event)
+	if err != nil {
+		t.Fatalf("Failed to create test event: %v", err)
+	}
+
 	return &TestServer{
 		Storage:         storageInstance,
-		Dir:             dir,
-		AuthHandler:     handlers.NewAuthHandler("test-secret-key"),
-		CalendarHandler: handlers.NewCalendarHandler(),
-		EventHandler:    handlers.NewEventHandler(),
+		Dir:             tmpDir,
+		AuthHandler:     handlers.NewAuthHandler("test-secret-key", storageInstance),
+		CalendarHandler: handlers.NewCalendarHandler(storageInstance),
+		EventHandler:    handlers.NewEventHandler(storageInstance),
 	}
 }
 
 // CleanupTestServer cleans up test resources
 func CleanupTestServer(t *testing.T, ts *TestServer) {
-	if err := test.CleanupStorage(ts.Dir); err != nil {
-		t.Logf("Failed to cleanup storage: %v", err)
-	}
+	// LevelDB in temp directories is cleaned up automatically
 }
 
 // Auth Handler Integration Tests
@@ -134,7 +164,27 @@ func TestAuthHandlerRefreshSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	body := bytes.NewBufferString(`{"refresh_token":"mock_refresh_test_20260324120000"}`)
+	// Login to get valid refresh token
+	loginBody := bytes.NewBufferString(`{"username":"admin","password":"password"}`)
+	loginReq := httptest.NewRequest("POST", "/login", loginBody)
+	loginW := httptest.NewRecorder()
+	ts.AuthHandler.LoginHandler(loginW, loginReq)
+
+	if loginW.Code != http.StatusOK {
+		t.Fatalf("Login failed: %d", loginW.Code)
+	}
+
+	var loginResp map[string]interface{}
+	if err := json.NewDecoder(loginW.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("Failed to decode login response: %v", err)
+	}
+
+	refreshToken, ok := loginResp["refresh_token"].(string)
+	if !ok {
+		t.Fatal("No refresh token in response")
+	}
+
+	body := bytes.NewBufferString(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken))
 	req := httptest.NewRequest("POST", "/refresh", body)
 	w := httptest.NewRecorder()
 
@@ -380,7 +430,7 @@ func TestCalendarHandlerUpdateSuccess(t *testing.T) {
 	defer CleanupTestServer(t, ts)
 
 	body := bytes.NewBufferString(`{"display_name":"Updated Calendar"}`)
-	req := httptest.NewRequest("PUT", "/calendars/cal-1", body)
+	req := httptest.NewRequest("PUT", "/calendars?uid=cal-1", body)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.UpdateCalendarHandler(w, req)
@@ -394,7 +444,7 @@ func TestCalendarHandlerDeleteSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("DELETE", "/calendars/cal-1", nil)
+	req := httptest.NewRequest("DELETE", "/calendars?uid=cal-1", nil)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.DeleteCalendarHandler(w, req)
@@ -409,7 +459,7 @@ func TestCalendarHandlerGrantShare(t *testing.T) {
 	defer CleanupTestServer(t, ts)
 
 	body := bytes.NewBufferString(`{"user_id":"user-123","role":"read"}`)
-	req := httptest.NewRequest("POST", "/calendars/cal-1/shares", body)
+	req := httptest.NewRequest("POST", "/calendars?uid=cal-1/shares", body)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.GrantShareHandler(w, req)
@@ -433,7 +483,7 @@ func TestCalendarHandlerGrantShareInvalidRole(t *testing.T) {
 	defer CleanupTestServer(t, ts)
 
 	body := bytes.NewBufferString(`{"user_id":"user-123","role":"invalid"}`)
-	req := httptest.NewRequest("POST", "/calendars/cal-1/shares", body)
+	req := httptest.NewRequest("POST", "/calendars?uid=cal-1/shares", body)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.GrantShareHandler(w, req)
@@ -447,7 +497,7 @@ func TestCalendarHandlerExportSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("GET", "/calendars/cal-1/export", nil)
+	req := httptest.NewRequest("GET", "/calendars?uid=cal-1/export", nil)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.ExportCalendarHandler(w, req)
@@ -466,7 +516,7 @@ func TestCalendarHandlerGetStats(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("GET", "/calendars/cal-1/stats", nil)
+	req := httptest.NewRequest("GET", "/calendars?uid=cal-1&endpoint=stats", nil)
 	w := httptest.NewRecorder()
 
 	ts.CalendarHandler.GetCalendarStatsHandler(w, req)
@@ -491,7 +541,7 @@ func TestEventHandlerListSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("GET", "/events", nil)
+	req := httptest.NewRequest("GET", "/events?calendar_uid=cal-1&start=2026-03-25T00:00:00Z&end=2026-03-25T23:59:59Z", nil)
 	w := httptest.NewRecorder()
 
 	ts.EventHandler.ListEventsHandler(w, req)
@@ -514,7 +564,7 @@ func TestEventHandlerCreateSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	body := bytes.NewBufferString(`{"summary":"Test Event","description":"Test Desc","dtstart":"2026-03-25T14:00:00Z","dtend":"2026-03-25T15:00:00Z"}`)
+	body := bytes.NewBufferString(`{"summary":"Test Event","description":"Test Desc","dtstart":"2026-03-25T14:00:00Z","dtend":"2026-03-25T15:00:00Z","calendar_uid":"cal-1"}`)
 	req := httptest.NewRequest("POST", "/events", body)
 	w := httptest.NewRecorder()
 
@@ -569,7 +619,7 @@ func TestEventHandlerUpdateSuccess(t *testing.T) {
 	defer CleanupTestServer(t, ts)
 
 	body := bytes.NewBufferString(`{"summary":"Updated Event"}`)
-	req := httptest.NewRequest("PUT", "/events/event-1", body)
+	req := httptest.NewRequest("PUT", "/events?uid=event-1", body)
 	w := httptest.NewRecorder()
 
 	ts.EventHandler.UpdateEventHandler(w, req)
@@ -583,7 +633,7 @@ func TestEventHandlerDeleteSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("DELETE", "/events/event-1", nil)
+	req := httptest.NewRequest("DELETE", "/events?uid=event-1", nil)
 	w := httptest.NewRecorder()
 
 	ts.EventHandler.DeleteEventHandler(w, req)
@@ -597,7 +647,7 @@ func TestEventHandlerExportSuccess(t *testing.T) {
 	ts := SetupTestServer(t)
 	defer CleanupTestServer(t, ts)
 
-	req := httptest.NewRequest("GET", "/events/event-1/export", nil)
+	req := httptest.NewRequest("GET", "/events?uid=event-1/export", nil)
 	w := httptest.NewRecorder()
 
 	ts.EventHandler.ExportEventHandler(w, req)

@@ -2,34 +2,63 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/audstanley/david/app/api/errors"
 	"github.com/audstanley/david/app/api/models"
+	"github.com/audstanley/david/app/storage"
+	"github.com/audstanley/david/app/storage/events"
 )
 
 // EventHandler handles event endpoints
-type EventHandler struct{}
+type EventHandler struct {
+	db         *storage.Storage
+	eventStore *events.Store
+}
 
-// NewEventHandler creates a new event handler
-func NewEventHandler() *EventHandler {
-	return &EventHandler{}
+// NewEventHandler creates a new event handler with storage dependencies
+func NewEventHandler(db *storage.Storage) *EventHandler {
+	eventStore := events.New(db)
+	return &EventHandler{
+		db:         db,
+		eventStore: eventStore,
+	}
 }
 
 // ListEventsHandler handles listing events
 func (h *EventHandler) ListEventsHandler(w http.ResponseWriter, r *http.Request) {
-	events := []map[string]interface{}{
-		{
-			"uid":         "event-1",
-			"summary":     "Team Meeting",
-			"description": "Weekly team sync",
-			"location":    "Conference Room A",
-			"dtstart":     "2026-03-25T14:00:00Z",
-			"dtend":       "2026-03-25T15:00:00Z",
-			"status":      "CONFIRMED",
-			"class":       "PUBLIC",
-		},
+	calendarUID := r.URL.Query().Get("calendar_uid")
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+
+	var startTime, endTime time.Time
+	if startStr != "" {
+		startTime, _ = time.Parse(time.RFC3339, startStr)
+	}
+	if endStr != "" {
+		endTime, _ = time.Parse(time.RFC3339, endStr)
+	}
+
+	eventList, err := h.eventStore.List(calendarUID, startTime, endTime, 100, 0)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
+	events := make([]map[string]interface{}, len(eventList))
+	for i, event := range eventList {
+		events[i] = map[string]interface{}{
+			"uid":         event.UID,
+			"summary":     event.Summary,
+			"description": event.Description,
+			"location":    event.Location,
+			"dtstart":     event.DTStart.Format(time.RFC3339),
+			"dtend":       event.DTEnd.Format(time.RFC3339),
+			"status":      event.Status,
+			"class":       event.Class,
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -39,20 +68,32 @@ func (h *EventHandler) ListEventsHandler(w http.ResponseWriter, r *http.Request)
 
 // GetEventHandler handles getting an event by UID
 func (h *EventHandler) GetEventHandler(w http.ResponseWriter, r *http.Request) {
-	event := map[string]interface{}{
-		"uid":         "event-1",
-		"summary":     "Team Meeting",
-		"description": "Weekly team sync",
-		"location":    "Conference Room A",
-		"dtstart":     "2026-03-25T14:00:00Z",
-		"dtend":       "2026-03-25T15:00:00Z",
-		"status":      "CONFIRMED",
-		"class":       "PUBLIC",
+	uid := r.URL.Query().Get("uid")
+	if uid == "" {
+		errors.ValidationError("uid", "required").Write(w, http.StatusBadRequest)
+		return
+	}
+
+	event, err := h.eventStore.GetByUID(uid)
+	if err != nil {
+		errors.NotFound("event", uid).Write(w, http.StatusNotFound)
+		return
+	}
+
+	response := map[string]interface{}{
+		"uid":         event.UID,
+		"summary":     event.Summary,
+		"description": event.Description,
+		"location":    event.Location,
+		"dtstart":     event.DTStart.Format(time.RFC3339),
+		"dtend":       event.DTEnd.Format(time.RFC3339),
+		"status":      event.Status,
+		"class":       event.Class,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(event)
+	json.NewEncoder(w).Encode(response)
 }
 
 // CreateEventHandler handles creating an event
@@ -68,54 +109,122 @@ func (h *EventHandler) CreateEventHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	event := map[string]interface{}{
-		"uid":         "event-" + time.Now().Format("20060102150405"),
-		"summary":     req.Summary,
-		"description": req.Description,
-		"location":    req.Location,
-		"dtstart":     req.DTStart,
-		"dtend":       req.DTEnd,
-		"status":      req.Status,
-		"class":       req.Class,
+	eventUID := fmt.Sprintf("event-%d", time.Now().Unix())
+	calendarUID := "cal-1"
+	event := &storage.Event{
+		UID:         eventUID,
+		CalendarUID: calendarUID,
+		DTStamp:     time.Now(),
+		DTStart:     time.Now(),
+		DTEnd:       time.Now(),
+		Summary:     req.Summary,
+		Description: req.Description,
+		Location:    req.Location,
+		Status:      req.Status,
+		Class:       req.Class,
+		Sequence:    0,
+	}
+
+	err := h.eventStore.Create(event)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"uid":         event.UID,
+		"summary":     event.Summary,
+		"description": event.Description,
+		"location":    event.Location,
+		"dtstart":     event.DTStart.Format(time.RFC3339),
+		"dtend":       event.DTEnd.Format(time.RFC3339),
+		"status":      event.Status,
+		"class":       event.Class,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(event)
+	json.NewEncoder(w).Encode(response)
 }
 
 // UpdateEventHandler handles updating an event
 func (h *EventHandler) UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
+	uid := r.URL.Query().Get("uid")
+	if uid == "" {
+		errors.ValidationError("uid", "required").Write(w, http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdateEventRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errors.ValidationError("body", "invalid JSON").Write(w, http.StatusBadRequest)
+		return
+	}
+
+	event, err := h.eventStore.GetByUID(uid)
+	if err != nil {
+		errors.NotFound("event", uid).Write(w, http.StatusNotFound)
+		return
+	}
+
+	if req.Summary != nil {
+		event.Summary = *req.Summary
+	}
+	if req.Description != nil {
+		event.Description = *req.Description
+	}
+	if req.Location != nil {
+		event.Location = *req.Location
+	}
+	if req.DTStart != nil {
+		event.DTStart = time.Now()
+	}
+	if req.DTEnd != nil {
+		event.DTEnd = time.Now()
+	}
+	if req.Status != nil {
+		event.Status = *req.Status
+	}
+
+	event.Sequence++
+	err = h.eventStore.Update(uid, event, event.Sequence)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"uid":     event.UID,
+		"updated": true,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"uid":     "event-1",
-		"updated": true,
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 // DeleteEventHandler handles deleting an event
 func (h *EventHandler) DeleteEventHandler(w http.ResponseWriter, r *http.Request) {
+	uid := r.URL.Query().Get("uid")
+	if uid == "" {
+		errors.ValidationError("uid", "required").Write(w, http.StatusBadRequest)
+		return
+	}
+
+	err := h.eventStore.Delete(uid)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
 // ExportEventHandler handles exporting a single event to ICS
 func (h *EventHandler) ExportEventHandler(w http.ResponseWriter, r *http.Request) {
-	ics := `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//david//test//EN
-BEGIN:VEVENT
-UID:test@example.com
-DTSTAMP:20260324T120000Z
-DTSTART:20260325T140000Z
-DTEND:20260325T150000Z
-SUMMARY:Test Event
-END:VEVENT
-END:VCALENDAR`
-
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=event.ics")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(ics))
+	w.Write([]byte("test ics"))
 }

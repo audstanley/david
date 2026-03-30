@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/audstanley/david/app"
 	"github.com/audstanley/david/app/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -201,8 +202,17 @@ func (s *Store) List(limit, offset int) ([]*storage.User, error) {
 
 // VerifyPassword verifies a password against the hash
 func (s *Store) VerifyPassword(passwordHash, password string) (bool, error) {
+	// Direct comparison using bcrypt.CompareHashAndPassword
 	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// VerifyPasswordHash verifies a password using the app package
+func (s *Store) VerifyPasswordHash(password, hash string) error {
+	return app.VerifyPasswordHash(password, hash)
 }
 
 // HashPassword hashes a password

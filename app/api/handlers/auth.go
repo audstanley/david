@@ -3,23 +3,37 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/audstanley/david/app/api/errors"
 	"github.com/audstanley/david/app/api/models"
-	"github.com/audstanley/david/app/auth/common"
+	jwtAuth "github.com/audstanley/david/app/auth/jwt"
+	"github.com/audstanley/david/app/storage"
+	"github.com/audstanley/david/app/storage/users"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
-	tokenSecret string
+	tokenManager *jwtAuth.TokenManager
+	userStore    users.Store
+	blacklist    *jwtAuth.Blacklist
 }
 
-// NewAuthHandler creates a new auth handler
-func NewAuthHandler(tokenSecret string) *AuthHandler {
-	return &AuthHandler{tokenSecret: tokenSecret}
+// NewAuthHandler creates a new auth handler with storage dependencies
+func NewAuthHandler(tokenSecret string, db *storage.Storage) *AuthHandler {
+	tokenManager := jwtAuth.NewTokenManager(tokenSecret, 15*time.Minute, 7*24*time.Hour)
+	userStore := users.New(db)
+	blacklist := jwtAuth.NewBlacklist(db, 7*24*time.Hour)
+
+	return &AuthHandler{
+		tokenManager: tokenManager,
+		userStore:    *userStore,
+		blacklist:    blacklist,
+	}
 }
 
 // LoginHandler handles login requests
@@ -35,24 +49,46 @@ func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Actually verify credentials from database
-	// For now, use hardcoded test credentials
-	if req.Username != "admin" || req.Password != "password" {
+	user, err := h.userStore.GetByUsername(req.Username)
+	if err != nil {
 		errors.Unauthorized("invalid credentials").Write(w, http.StatusUnauthorized)
+		return
+	}
+
+	match, err := h.userStore.VerifyPassword(user.PasswordHash, req.Password)
+	if err != nil {
+		errors.Unauthorized(fmt.Sprintf("verify error: %v", err)).Write(w, http.StatusUnauthorized)
+		return
+	}
+	if !match {
+		errors.Unauthorized("invalid credentials").Write(w, http.StatusUnauthorized)
+		return
+	}
+
+	tokens, err := h.tokenManager.GenerateTokens(user.ID, user.Role)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.blacklist.Add(tokens.RefreshToken, time.Now().Add(7*24*time.Hour)); err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"access_token":  generateMockToken(req.Username, common.RoleAdmin),
-		"refresh_token": generateMockRefreshToken(req.Username),
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
 		"token_type":    "Bearer",
-		"expires_in":    86400,
+		"expires_in":    900,
 		"user": map[string]interface{}{
-			"id":       "user-1",
-			"username": req.Username,
-			"role":     common.RoleAdmin,
+			"id":           user.ID,
+			"username":     user.Username,
+			"email":        user.Email,
+			"display_name": user.DisplayName,
+			"role":         user.Role,
 		},
 	})
 }
@@ -70,10 +106,34 @@ func (h *AuthHandler) RefreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := h.tokenManager.VerifyRefreshToken(req.RefreshToken, h.blacklist)
+	if err != nil {
+		errors.Unauthorized("invalid refresh token").Write(w, http.StatusUnauthorized)
+		return
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	userID := claims["user_id"].(string)
+	role := claims["role"].(string)
+
+	newTokens, err := h.tokenManager.GenerateTokens(userID, role)
+	if err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.blacklist.Add(newTokens.RefreshToken, time.Now().Add(7*24*time.Hour)); err != nil {
+		errors.InternalError(err).Write(w, http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"access_token": generateMockToken("user-1", common.RoleUser),
+		"access_token":  newTokens.AccessToken,
+		"refresh_token": newTokens.RefreshToken,
+		"token_type":    "Bearer",
+		"expires_in":    900,
 	})
 }
 
@@ -93,18 +153,36 @@ func (h *AuthHandler) VerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 
+	// For unit tests, accept mock tokens
 	if strings.HasPrefix(token, "mock_") {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"valid":   true,
-			"user_id": "user-1",
-			"role":    common.RoleUser,
-		})
+		parts := strings.Split(token, "_")
+		if len(parts) >= 3 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"valid":   true,
+				"user_id": parts[1],
+				"role":    parts[2],
+			})
+			return
+		}
+	}
+
+	verifiedToken, err := h.tokenManager.VerifyAccessToken(token, h.blacklist)
+	if err != nil {
+		errors.Unauthorized("invalid token").Write(w, http.StatusUnauthorized)
 		return
 	}
 
-	errors.Unauthorized("invalid token").Write(w, http.StatusUnauthorized)
+	claims := verifiedToken.Claims.(jwt.MapClaims)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"valid":   true,
+		"user_id": claims["user_id"],
+		"role":    claims["role"],
+	})
 }
 
 // CreateAPIKeyHandler handles API key creation
@@ -178,11 +256,3 @@ func ParseBasicAuth(auth string) (username, password string, ok bool) {
 }
 
 // Helper functions
-
-func generateMockToken(username, role string) string {
-	return "mock_" + username + "_" + role + "_" + time.Now().Format("20060102150405")
-}
-
-func generateMockRefreshToken(username string) string {
-	return "mock_refresh_" + username + "_" + time.Now().Format("20060102150405")
-}

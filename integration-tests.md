@@ -148,21 +148,27 @@ func TestFullCalendarWorkflow(t *testing.T) {
 
 ## Implementation Priority
 
-1. **High Priority** (Core functionality)
-   - Storage layer integration
-   - iCalendar parser integration
-   - API handler integration
-   - Security integration
+### Phase 1: Handler Refactoring (Prerequisite)
+**High Priority** - Required before integration testing
+1. Refactor Auth Handler to use real storage
+2. Refactor Calendar Handler to use real storage
+3. Refactor Event Handler to use real storage
 
-2. **Medium Priority** (Features)
-   - CLI integration
-   - WebDAV/CalDAV protocol integration
-   - Multi-user scenarios
+### Phase 2: Core Integration Tests (High Priority)
+1. Auth handler integration with LevelDB
+2. Calendar handler integration with LevelDB
+3. Event handler integration with LevelDB
+4. Security integration with real storage
 
-3. **Low Priority** (Edge cases)
-   - Error handling integration
-   - Stress tests
-   - Performance tests
+### Phase 3: Feature Integration Tests (Medium Priority)
+1. CLI integration with mocked storage
+2. WebDAV/CalDAV protocol integration
+3. Multi-user scenarios
+
+### Phase 4: Edge Cases (Low Priority)
+1. Error handling integration
+2. Stress tests
+3. Performance tests
 
 ## Running Tests
 
@@ -337,6 +343,10 @@ go test -bench=. ./...
 - [x] Test logout/blacklist endpoint
 - [x] Test invalid credentials handling
 - [x] Test token expiration handling
+- [ ] Test login with real DB credentials
+- [ ] Test real JWT token generation
+- [ ] Test token verification with LevelDB blacklist
+- [ ] Test Basic Auth integration
 
 #### 10.3.3 Calendar Handler Integration
 - [x] Test calendar creation
@@ -346,6 +356,9 @@ go test -bench=. ./...
 - [x] Test calendar listing
 - [x] Test calendar sharing
 - [ ] Test calendar access control
+- [ ] Test data persistence with LevelDB
+- [ ] Test pagination
+- [ ] Test calendar deletion cascade
 
 #### 10.3.4 Event Handler Integration
 - [x] Test event creation
@@ -354,6 +367,9 @@ go test -bench=. ./...
 - [x] Test event deletion
 - [x] Test event listing
 - [ ] Test date range queries
+- [ ] Test data persistence with LevelDB
+- [ ] Test recurrence instance handling
+- [ ] Test sequence number handling
 
 #### 10.3.5 Todo Handler Integration (Not implemented)
 - [ ] Test todo creation
@@ -376,11 +392,13 @@ go test -bench=. ./...
 - [ ] Test user deletion
 - [ ] Test user listing
 
-#### 10.3.8 Error Handling (Not implemented)
-- [ ] Test validation errors
-- [ ] Test not found errors
-- [ ] Test permission errors
-- [ ] Test server errors
+#### 10.3.8 Error Handling Integration
+- [ ] Test validation errors (400)
+- [ ] Test not found errors (404)
+- [ ] Test permission errors (403)
+- [ ] Test server errors (500)
+- [ ] Test concurrent request handling
+- [ ] Test invalid ICS content handling
 
 ### Phase 10.4: CLI Integration (Target: 80%)
 
@@ -514,11 +532,44 @@ go test -bench=. ./...
 
 - Phase 10.1: Storage Layer Integration: 10/35 tasks (29%)
 - Phase 10.2: iCalendar Parser Integration: 10/14 tasks (71%)
-- Phase 10.3: API Handler Integration: 15/30 tasks (50%)
+- Phase 10.3: API Handler Integration: 15/37 tasks (41%)
 - Phase 10.4: CLI Integration: 0/15 tasks (0%)
 - Phase 10.5: Security Integration: 11/11 tasks (100%)
 - Phase 10.6: WebDAV/CalDAV Integration: 0/10 tasks (0%)
 - Phase 10.7: Multi-User Scenarios: 0/11 tasks (0%)
 - Phase 10.8: Error Handling Integration: 0/15 tasks (0%)
 
-**Total: 46/131 tasks complete**
+**Total: 47/138 tasks complete**
+
+## Handler Refactoring Requirements
+
+### Current State
+API handlers currently use hardcoded/mock responses and do not integrate with storage layer.
+
+### Required Changes
+Handlers need to accept storage dependencies to enable real integration testing.
+
+#### Auth Handler
+**Current:** Hardcoded credentials check, mock token generation
+**Required:**
+- Accept `UserStore` dependency
+- Verify credentials against LevelDB
+- Generate real JWT tokens
+- Store refresh tokens in database
+- Verify tokens against blacklist storage
+
+#### Calendar Handler
+**Current:** Returns static mock data
+**Required:**
+- Accept `Storage`, `CalendarStore`, `ShareManager` dependencies
+- Query actual calendar data from LevelDB
+- Persist CRUD operations to database
+- Validate calendar access permissions
+
+#### Event Handler
+**Current:** Returns static mock data
+**Required:**
+- Accept `Storage`, `EventStore`, `RecurrenceStore` dependencies
+- Query actual event data from LevelDB
+- Persist CRUD operations to database
+- Handle recurrence instances
